@@ -211,7 +211,7 @@ function CartSummary({
 }
 
 // Catalog Page Component
-function CatalogPage({ store, onBack }: { store: Store; onBack: () => void }) {
+function CatalogPage({ store }: { store: Store }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [filters, setFilters] = useState<Filters>({ groups: [], brands: [], categories: [], colors: [] });
   const [loading, setLoading] = useState(true);
@@ -290,7 +290,7 @@ function CatalogPage({ store, onBack }: { store: Store; onBack: () => void }) {
 
   return (
     <>
-      <Header showBack onBack={onBack} storeName={store.name} />
+      <Header storeName={store.name} />
       <div className="container">
         <div className="section-header">
           <h2>Tabela de Produtos</h2>
@@ -358,6 +358,11 @@ function App() {
         console.log('Stores loaded:', data);
         setStores(data);
         setError(null);
+        // Selecionar automaticamente a loja CENTER PEÇAS - CATALÃO (ID 1)
+        const defaultStore = data.find(s => s.id === 1);
+        if (defaultStore) {
+          setSelectedStore(defaultStore);
+        }
       })
       .catch((err) => {
         console.error('Error loading stores:', err);
@@ -370,7 +375,7 @@ function App() {
   }, []);
 
   if (selectedStore) {
-    return <CatalogPage store={selectedStore} onBack={() => setSelectedStore(null)} />;
+    return <CatalogPage store={selectedStore} />;
   }
 
   if (error) {

@@ -1,5 +1,6 @@
 // Configuração da API
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://82.25.79.170';
+// Em produção usa caminho relativo (proxy Vercel), em dev usa URL local
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 console.log('API_BASE_URL:', API_BASE_URL);
 
