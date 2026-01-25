@@ -11,6 +11,9 @@ export default defineConfig({
 
   preview: {
     host: true,
-    allowedHosts: true,
+    port: 5174,
+    allowedHosts: [
+      'pedido-rapido-catalao-pedido-rapido-catalao.f0dgeg.easypanel.host'
+    ],
   },
 })
