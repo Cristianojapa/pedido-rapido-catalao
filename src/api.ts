@@ -1,8 +1,10 @@
 // Configuração da API
-// Em produção usa caminho relativo (proxy Vercel), em dev usa URL local
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+// Em produção, usa Cloudflare Tunnel (HTTPS)
+// Em desenvolvimento local, configure VITE_API_BASE_URL=http://localhost:8000
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://consumption-challenging-ohio-analog.trycloudflare.com';
 
 console.log('API_BASE_URL:', API_BASE_URL);
+
 
 export const api = {
     async getStores(): Promise<{ id: number; name: string; city: string | null }[]> {
