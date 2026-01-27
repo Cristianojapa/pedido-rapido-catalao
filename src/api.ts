@@ -1,7 +1,7 @@
 // Configuração da API
-// Em produção, usa Cloudflare Tunnel (HTTPS)
+// Em produção, usa domínio permanente com HTTPS
 // Em desenvolvimento local, configure VITE_API_BASE_URL=http://localhost:8000
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://consumption-challenging-ohio-analog.trycloudflare.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.xn--centerpeasatacado-hsb.com.br';
 
 console.log('API_BASE_URL:', API_BASE_URL);
 
