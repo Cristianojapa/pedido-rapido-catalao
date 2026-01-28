@@ -132,8 +132,6 @@ function ProductTable({
         <thead>
           <tr>
             <th>Modelo</th>
-            <th>Cor</th>
-            <th>Qualidade</th>
             <th>Valor</th>
             <th>Quantidade</th>
             <th>Subtotal</th>
@@ -148,8 +146,6 @@ function ProductTable({
             return (
               <tr key={product.id}>
                 <td className="product-name">{product.description}</td>
-                <td>{product.color || '-'}</td>
-                <td>{product.category || '-'}</td>
                 <td className="product-price">{formatCurrency(product.price)}</td>
                 <td>
                   <QuantityInput

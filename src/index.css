@@ -454,6 +454,10 @@ body {
         padding: 0.75rem;
     }
 
+    .header h1 {
+        font-size: 0.9rem;
+    }
+
     .section-header {
         flex-direction: column;
         align-items: stretch;
@@ -473,11 +477,66 @@ body {
     }
 
     .products-table-wrapper {
-        overflow-x: auto;
+        margin-bottom: 140px;
+        overflow-x: hidden;
     }
 
     .products-table {
-        min-width: 500px;
+        min-width: auto;
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    .products-table th,
+    .products-table td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.75rem;
+        white-space: normal;
+        word-wrap: break-word;
+    }
+
+    /* Column Widths */
+    .products-table th:nth-child(1),
+    .products-table td:nth-child(1) {
+        /* Modelo */
+        width: 35%;
+        text-align: left;
+    }
+
+    .products-table th:nth-child(2),
+    .products-table td:nth-child(2) {
+        /* Valor */
+        width: 20%;
+        text-align: right;
+    }
+
+    .products-table th:nth-child(3),
+    .products-table td:nth-child(3) {
+        /* Quantidade */
+        width: 25%;
+        text-align: center;
+    }
+
+    .products-table th:nth-child(4),
+    .products-table td:nth-child(4) {
+        /* Subtotal */
+        width: 20%;
+        text-align: right;
+    }
+
+    .quantity-input {
+        justify-content: center;
+    }
+
+    .quantity-input button {
+        width: 22px;
+        height: 22px;
+        font-size: 0.75rem;
+    }
+
+    .quantity-input span {
+        min-width: 1rem;
+        font-size: 0.75rem;
     }
 
     .cart-summary {
