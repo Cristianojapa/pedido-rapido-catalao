@@ -258,7 +258,7 @@ function CatalogPage({ store }: { store: Store }) {
 
   // Load initial filters (all groups)
   useEffect(() => {
-    api.getFilters(store.id).then(setFilters).catch(console.error);
+    api.getFilters(store.id, {}).then(setFilters).catch(console.error);
   }, [store.id]);
 
   // Ordenar grupos (TELA primeiro)
@@ -270,10 +270,14 @@ function CatalogPage({ store }: { store: Store }) {
     });
   }, [filters.groups]);
 
-  // Load filtered secondary filters when group changes
+  // Load filtered secondary filters when any filter changes
   useEffect(() => {
     if (activeFilters.group !== null) {
-      api.getFilters(store.id, activeFilters.group)
+      api.getFilters(store.id, {
+        group: activeFilters.group,
+        brand: activeFilters.brand || undefined,
+        category: activeFilters.category || undefined,
+      })
         .then((filteredFilters) => {
           setFilters((prev) => ({
             ...prev,
@@ -284,7 +288,7 @@ function CatalogPage({ store }: { store: Store }) {
         })
         .catch(console.error);
     }
-  }, [store.id, activeFilters.group]);
+  }, [store.id, activeFilters.group, activeFilters.brand, activeFilters.category]);
 
   // Load products
   const loadProducts = useCallback(async () => {

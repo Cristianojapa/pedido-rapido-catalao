@@ -43,10 +43,12 @@ export const api = {
         return response.json();
     },
 
-    async getFilters(storeId: number, groupId?: number) {
+    async getFilters(storeId: number, params?: { group?: number; brand?: number; category?: number }) {
         const searchParams = new URLSearchParams();
         searchParams.set('store', storeId.toString());
-        if (groupId) searchParams.set('group', groupId.toString());
+        if (params?.group) searchParams.set('group', params.group.toString());
+        if (params?.brand) searchParams.set('brand', params.brand.toString());
+        if (params?.category) searchParams.set('category', params.category.toString());
 
         const response = await fetch(`${API_BASE_URL}/api/public/catalog/filters/?${searchParams}`);
         if (!response.ok) throw new Error('Erro ao carregar filtros');
