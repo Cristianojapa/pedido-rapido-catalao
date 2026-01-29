@@ -224,11 +224,11 @@ function CartSummary({
   return (
     <div className="cart-summary">
       <div className="cart-info">
+        <span className="cart-items-count">{totalItems} item(ns)</span>
         <div className="cart-total">
           <span className="cart-total-label">Total do Orçamento</span>
           <span className="cart-total-value">{formatCurrency(totalValue)}</span>
         </div>
-        <span className="cart-items-count">{totalItems} item(ns)</span>
       </div>
       <div className="cart-actions">
         <button className="btn btn-secondary" onClick={onClear}>
