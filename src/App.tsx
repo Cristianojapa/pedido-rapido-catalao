@@ -1,21 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import './index.css';
 import { api } from './api';
 import type { Store, Product, Filters, CartItem } from './types';
 import { formatCurrency, openWhatsApp } from './whatsapp';
 
 // Header Component
-function Header({ onBack, showBack, storeName }: { onBack?: () => void; showBack?: boolean; storeName?: string }) {
+function Header({ storeName }: { storeName?: string }) {
   return (
     <header className="header">
-      <h1>
-        <span className="logo">CJ</span>
-        Cristianojapa {storeName && `- ${storeName}`}
-      </h1>
-      {showBack && (
-        <button className="header-back" onClick={onBack}>
-          ← Trocar Loja
-        </button>
+      <div className="header-brand">
+        <span className="logo">PR</span>
+        <h1>Pedido Rápido</h1>
+      </div>
+      {storeName && (
+        <div className="store-badge">
+          📍 {storeName}
+        </div>
       )}
     </header>
   );
@@ -37,7 +37,7 @@ function StoreSelectPage({ stores, onSelect, loading }: {
 
   return (
     <div className="store-select-page">
-      <h2>Bem-vindo ao Catálogo!</h2>
+      <h2>Bem-vindo ao Pedido Rápido!</h2>
       <p>Selecione uma loja para ver os produtos disponíveis</p>
       <div className="stores-grid">
         {stores.map((store) => (
@@ -51,37 +51,68 @@ function StoreSelectPage({ stores, onSelect, loading }: {
   );
 }
 
-// Filter Chips Component
+// Função para padronizar nomes (primeira letra de cada palavra maiúscula)
+function formatName(text: string): string {
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+// Ordem preferida dos grupos (TELA primeiro)
+const GROUP_ORDER: Record<string, number> = {
+  'TELA': 0,
+  'BATERIA': 1,
+  'TAMPA E LENTE': 2,
+  'FLEX E PLACA': 3,
+  'CABO E CARREGADOR': 4,
+  'PELICULA': 5,
+  'CONSUMIVEL': 6,
+  'FERRAMENTAS': 7,
+};
+
+// Filter Chips Component - Estilo Moderno
 function FilterChips({
   label,
   items,
   activeId,
-  onSelect
+  onSelect,
+  onClear,
+  showClear = false
 }: {
   label: string;
   items: { id: number; name: string }[];
   activeId: number | null;
   onSelect: (id: number | null) => void;
+  onClear?: () => void;
+  showClear?: boolean;
 }) {
   if (items.length === 0) return null;
 
+  const selectedCount = activeId !== null ? 1 : 0;
+
   return (
     <div className="filter-group">
-      <span className="filter-label">{label}</span>
+      <div className="filter-header">
+        <span className="filter-label">
+          {label}
+          {selectedCount > 0 && <span className="filter-count">{selectedCount}</span>}
+        </span>
+        {showClear && activeId !== null && (
+          <button className="filter-clear" onClick={onClear}>
+            Limpar
+          </button>
+        )}
+      </div>
       <div className="filter-chips">
-        <button
-          className={`chip ${activeId === null ? 'active' : ''}`}
-          onClick={() => onSelect(null)}
-        >
-          Todos
-        </button>
         {items.map((item) => (
           <button
             key={item.id}
             className={`chip ${activeId === item.id ? 'active' : ''}`}
-            onClick={() => onSelect(item.id)}
+            onClick={() => onSelect(activeId === item.id ? null : item.id)}
           >
-            {item.name}
+            {formatName(item.name)}
           </button>
         ))}
       </div>
@@ -220,10 +251,35 @@ function CatalogPage({ store }: { store: Store }) {
     color: number | null;
   }>({ group: null, brand: null, category: null, color: null });
 
-  // Load filters
+  // Load initial filters (all groups)
   useEffect(() => {
     api.getFilters(store.id).then(setFilters).catch(console.error);
   }, [store.id]);
+
+  // Ordenar grupos (TELA primeiro)
+  const sortedGroups = useMemo(() => {
+    return [...filters.groups].sort((a, b) => {
+      const orderA = GROUP_ORDER[a.name.toUpperCase()] ?? 999;
+      const orderB = GROUP_ORDER[b.name.toUpperCase()] ?? 999;
+      return orderA - orderB;
+    });
+  }, [filters.groups]);
+
+  // Load filtered secondary filters when group changes
+  useEffect(() => {
+    if (activeFilters.group !== null) {
+      api.getFilters(store.id, activeFilters.group)
+        .then((filteredFilters) => {
+          setFilters((prev) => ({
+            ...prev,
+            brands: filteredFilters.brands,
+            categories: filteredFilters.categories,
+            colors: filteredFilters.colors,
+          }));
+        })
+        .catch(console.error);
+    }
+  }, [store.id, activeFilters.group]);
 
   // Load products
   const loadProducts = useCallback(async () => {
@@ -277,7 +333,11 @@ function CatalogPage({ store }: { store: Store }) {
   };
 
   const handleFilterChange = (type: keyof typeof activeFilters, value: number | null) => {
-    setActiveFilters((prev) => ({ ...prev, [type]: value }));
+    if (type === 'group') {
+      setActiveFilters({ group: value, brand: null, category: null, color: null });
+    } else {
+      setActiveFilters((prev) => ({ ...prev, [type]: value }));
+    }
   };
 
   const handleClearCart = () => {
@@ -288,43 +348,60 @@ function CatalogPage({ store }: { store: Store }) {
     <>
       <Header storeName={store.name} />
       <div className="container">
-        <div className="section-header">
-          <h2>Tabela de Produtos</h2>
-          <div className="search-box">
-            <input
-              type="text"
-              placeholder="Pesquisar por modelo..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+        <div className="page-title">
+          <h2>Catálogo de Produtos</h2>
+          <p>Selecione os produtos e quantidades para seu orçamento</p>
+        </div>
+
+        <div className="search-box">
+          <input
+            type="text"
+            placeholder="Pesquisar por modelo..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
         <div className="filters-section">
+          {/* Filtro principal: Grupos (ordenado, TELA primeiro) */}
           <FilterChips
-            label="Marcas"
-            items={filters.brands}
-            activeId={activeFilters.brand}
-            onSelect={(id) => handleFilterChange('brand', id)}
-          />
-          <FilterChips
-            label="Qualidade"
-            items={filters.categories}
-            activeId={activeFilters.category}
-            onSelect={(id) => handleFilterChange('category', id)}
-          />
-          <FilterChips
-            label="Grupos"
-            items={filters.groups}
+            label="Grupo"
+            items={sortedGroups}
             activeId={activeFilters.group}
             onSelect={(id) => handleFilterChange('group', id)}
+            showClear={true}
+            onClear={() => handleFilterChange('group', null)}
           />
-          <FilterChips
-            label="Cores"
-            items={filters.colors}
-            activeId={activeFilters.color}
-            onSelect={(id) => handleFilterChange('color', id)}
-          />
+
+          {/* Filtros secundários: só aparecem após selecionar um grupo */}
+          {activeFilters.group !== null && (
+            <>
+              <FilterChips
+                label="Marcas"
+                items={filters.brands}
+                activeId={activeFilters.brand}
+                onSelect={(id) => handleFilterChange('brand', id)}
+                showClear={true}
+                onClear={() => handleFilterChange('brand', null)}
+              />
+              <FilterChips
+                label="Qualidade"
+                items={filters.categories}
+                activeId={activeFilters.category}
+                onSelect={(id) => handleFilterChange('category', id)}
+                showClear={true}
+                onClear={() => handleFilterChange('category', null)}
+              />
+              <FilterChips
+                label="Cores"
+                items={filters.colors}
+                activeId={activeFilters.color}
+                onSelect={(id) => handleFilterChange('color', id)}
+                showClear={true}
+                onClear={() => handleFilterChange('color', null)}
+              />
+            </>
+          )}
         </div>
 
         <ProductTable
@@ -348,10 +425,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('App mounted, fetching stores...');
     api.getStores()
       .then((data) => {
-        console.log('Stores loaded:', data);
         setStores(data);
         setError(null);
         // Selecionar automaticamente a loja CENTER PEÇAS - CATALÃO (ID 1)
@@ -365,7 +440,6 @@ function App() {
         setError(err.message || 'Erro ao carregar lojas');
       })
       .finally(() => {
-        console.log('Loading complete');
         setLoading(false);
       });
   }, []);
