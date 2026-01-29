@@ -164,8 +164,8 @@ function ProductTable({
           <tr>
             <th>Modelo</th>
             <th>Valor</th>
-            <th>Quantidade</th>
-            <th>Subtotal</th>
+            <th>Qtd</th>
+            <th className="hide-mobile">Subtotal</th>
           </tr>
         </thead>
         <tbody>
@@ -178,13 +178,18 @@ function ProductTable({
               <tr key={product.id}>
                 <td className="product-name">{product.description}</td>
                 <td className="product-price">{formatCurrency(product.price)}</td>
-                <td>
+                <td className="quantity-cell">
                   <QuantityInput
                     quantity={quantity}
                     onChange={(delta) => onQuantityChange(product, delta)}
                   />
+                  {quantity > 0 && (
+                    <div className="mobile-subtotal">
+                      {formatCurrency(subtotal)}
+                    </div>
+                  )}
                 </td>
-                <td className="product-subtotal">
+                <td className="product-subtotal hide-mobile">
                   {quantity > 0 ? formatCurrency(subtotal) : '-'}
                 </td>
               </tr>
