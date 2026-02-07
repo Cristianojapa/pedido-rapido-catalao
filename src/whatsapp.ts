@@ -1,7 +1,7 @@
 import type { CartItem } from './types';
+import { api } from './api';
 
-const WHATSAPP_NUMBER = '5511952960701';
-const STORE_NAME = 'Cristianojapa';
+const WHATSAPP_NUMBER = '5564999194800';
 
 export function formatCurrency(value: number): string {
     return new Intl.NumberFormat('pt-BR', {
@@ -10,13 +10,18 @@ export function formatCurrency(value: number): string {
     }).format(value);
 }
 
-export function generateWhatsAppMessage(items: CartItem[], storeName: string): string {
-    const lines: string[] = [
-        `🛒 *Pedido - ${STORE_NAME}*`,
-        `📍 Loja: ${storeName}`,
-        '',
-        '*Itens do pedido:*',
-    ];
+export function generateWhatsAppMessage(items: CartItem[], storeName: string, orderId?: number): string {
+    const lines: string[] = [];
+
+    if (orderId) {
+        lines.push(`🛒 *Pedido #${orderId}*`);
+    } else {
+        lines.push(`🛒 *Novo Pedido*`);
+    }
+
+    lines.push(`📍 Loja: ${storeName}`);
+    lines.push('');
+    lines.push('*Itens do pedido:*');
 
     let total = 0;
 
@@ -32,15 +37,35 @@ export function generateWhatsAppMessage(items: CartItem[], storeName: string): s
 
     lines.push('─'.repeat(30));
     lines.push(`*TOTAL: ${formatCurrency(total)}*`);
-    lines.push('');
-    lines.push('_Mensagem gerada pelo catálogo online_');
 
     return lines.join('\n');
 }
 
-export function openWhatsApp(items: CartItem[], storeName: string): void {
-    const message = generateWhatsAppMessage(items, storeName);
+export async function openWhatsApp(items: CartItem[], storeName: string, storeId: number): Promise<void> {
+    let orderId: number | undefined;
+
+    // Envia o pedido para o sistema antes de abrir o WhatsApp
+    try {
+        const orderData = {
+            store: storeId,
+            items: items.map(item => ({
+                product_id: item.product.id,
+                description: item.product.description,
+                quantity: item.quantity,
+                price: item.product.price,
+            })),
+        };
+        const response = await api.createOrder(orderData);
+        orderId = response.order_id;
+        console.log('Pedido enviado para o sistema com sucesso! ID:', orderId);
+    } catch (error) {
+        console.error('Erro ao enviar pedido para o sistema:', error);
+        // Continua para abrir o WhatsApp mesmo se falhar
+    }
+
+    const message = generateWhatsAppMessage(items, storeName, orderId);
     const encodedMessage = encodeURIComponent(message);
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
+
     window.open(url, '_blank');
 }

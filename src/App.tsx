@@ -205,10 +205,12 @@ function ProductTable({
 function CartSummary({
   cart,
   storeName,
+  storeId,
   onClear
 }: {
   cart: Map<string, CartItem>;
   storeName: string;
+  storeId: number;
   onClear: () => void;
 }) {
   const items = Array.from(cart.values());
@@ -217,8 +219,8 @@ function CartSummary({
 
   if (totalItems === 0) return null;
 
-  const handleSendWhatsApp = () => {
-    openWhatsApp(items, storeName);
+  const handleSendWhatsApp = async () => {
+    await openWhatsApp(items, storeName, storeId);
   };
 
   return (
@@ -421,7 +423,7 @@ function CatalogPage({ store }: { store: Store }) {
         />
       </div>
 
-      <CartSummary cart={cart} storeName={store.name} onClear={handleClearCart} />
+      <CartSummary cart={cart} storeName={store.name} storeId={store.id} onClear={handleClearCart} />
     </>
   );
 }
