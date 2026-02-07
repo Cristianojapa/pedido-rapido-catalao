@@ -213,6 +213,7 @@ function CartSummary({
   storeId: number;
   onClear: () => void;
 }) {
+  const [sending, setSending] = useState(false);
   const items = Array.from(cart.values());
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalValue = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
@@ -220,7 +221,27 @@ function CartSummary({
   if (totalItems === 0) return null;
 
   const handleSendWhatsApp = async () => {
-    await openWhatsApp(items, storeName, storeId);
+    if (sending) return; // Evita duplo clique
+
+    setSending(true);
+    try {
+      const result = await openWhatsApp(items, storeName, storeId);
+
+      if (result.success) {
+        console.log('Pedido #' + result.orderId + ' criado com sucesso!');
+        // Limpa o carrinho após envio bem-sucedido
+        onClear();
+      } else if (result.error) {
+        console.warn('Pedido enviado para WhatsApp mas não foi salvo no sistema:', result.error);
+        // Ainda assim funciona, pois o WhatsApp foi aberto
+      }
+    } catch (error) {
+      console.error('Erro ao enviar pedido:', error);
+      alert('Erro ao enviar pedido. Por favor, tente novamente.');
+    } finally {
+      // Não reseta o sending aqui pois a página vai redirecionar para WhatsApp
+      // O estado será resetado quando a página for carregada novamente
+    }
   };
 
   return (
@@ -233,11 +254,15 @@ function CartSummary({
         </div>
       </div>
       <div className="cart-actions">
-        <button className="btn btn-secondary" onClick={onClear}>
+        <button className="btn btn-secondary" onClick={onClear} disabled={sending}>
           Limpar
         </button>
-        <button className="btn btn-whatsapp" onClick={handleSendWhatsApp}>
-          📱 Enviar WhatsApp
+        <button
+          className="btn btn-whatsapp"
+          onClick={handleSendWhatsApp}
+          disabled={sending}
+        >
+          {sending ? '⏳ Enviando...' : '📱 Enviar WhatsApp'}
         </button>
       </div>
     </div>

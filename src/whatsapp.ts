@@ -1,7 +1,10 @@
 import type { CartItem } from './types';
 import { api } from './api';
 
-const WHATSAPP_NUMBER = '5564999194800';
+// Número de WhatsApp - configurável via variável de ambiente
+const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '5564992045254';
+
+console.log('WhatsApp number:', WHATSAPP_NUMBER);
 
 export function formatCurrency(value: number): string {
     return new Intl.NumberFormat('pt-BR', {
@@ -41,8 +44,15 @@ export function generateWhatsAppMessage(items: CartItem[], storeName: string, or
     return lines.join('\n');
 }
 
-export async function openWhatsApp(items: CartItem[], storeName: string, storeId: number): Promise<void> {
+export interface OpenWhatsAppResult {
+    success: boolean;
+    orderId?: number;
+    error?: string;
+}
+
+export async function openWhatsApp(items: CartItem[], storeName: string, storeId: number): Promise<OpenWhatsAppResult> {
     let orderId: number | undefined;
+    let orderError: string | undefined;
 
     // Envia o pedido para o sistema antes de abrir o WhatsApp
     try {
@@ -55,17 +65,39 @@ export async function openWhatsApp(items: CartItem[], storeName: string, storeId
                 price: item.product.price,
             })),
         };
+        console.log('Enviando pedido para API:', JSON.stringify(orderData));
         const response = await api.createOrder(orderData);
         orderId = response.order_id;
-        console.log('Pedido enviado para o sistema com sucesso! ID:', orderId);
+        console.log('Pedido criado com sucesso! ID:', orderId);
     } catch (error) {
         console.error('Erro ao enviar pedido para o sistema:', error);
-        // Continua para abrir o WhatsApp mesmo se falhar
+        orderError = error instanceof Error ? error.message : 'Erro desconhecido';
+        // Continua para abrir o WhatsApp mesmo se falhar no sistema
     }
 
     const message = generateWhatsAppMessage(items, storeName, orderId);
     const encodedMessage = encodeURIComponent(message);
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
 
-    window.open(url, '_blank');
+    // No celular, usamos window.location.href que funciona melhor
+    // Em desktop, tentamos window.open primeiro
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile) {
+        // Em mobile, redireciona diretamente para WhatsApp
+        window.location.href = url;
+    } else {
+        // Em desktop, tenta abrir em nova aba
+        const newWindow = window.open(url, '_blank');
+        if (!newWindow) {
+            // Se popup foi bloqueada, redireciona
+            window.location.href = url;
+        }
+    }
+
+    return {
+        success: orderId !== undefined,
+        orderId,
+        error: orderError,
+    };
 }

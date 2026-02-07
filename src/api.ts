@@ -70,11 +70,12 @@ export const api = {
     },
 
     async createOrder(data: CreateOrderData): Promise<{ message: string; order_id: number }> {
-        console.log('Creating order:', data);
+        console.log('Creating order with data:', JSON.stringify(data, null, 2));
+        console.log('API URL:', `${API_BASE_URL}/api/public/orders/`);
 
-        // Cria um AbortController para timeout de 5 segundos
+        // Cria um AbortController para timeout de 10 segundos (aumentado para conexões lentas)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         try {
             const response = await fetch(`${API_BASE_URL}/api/public/orders/`, {
@@ -87,15 +88,29 @@ export const api = {
             });
             clearTimeout(timeoutId);
 
+            console.log('Response status:', response.status);
+            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
             if (!response.ok) {
-                const error = await response.json().catch(() => ({ detail: 'Erro ao enviar pedido' }));
+                const errorText = await response.text();
+                console.error('Response error body:', errorText);
+                let error;
+                try {
+                    error = JSON.parse(errorText);
+                } catch {
+                    error = { detail: errorText || 'Erro ao enviar pedido' };
+                }
                 throw new Error(error.detail || 'Erro ao enviar pedido');
             }
             const result = await response.json();
-            console.log('Order created:', result);
+            console.log('Order created successfully:', result);
             return result;
         } catch (error) {
             clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.error('Request timeout - API demorou mais de 10 segundos');
+                throw new Error('Tempo limite excedido. Verifique sua conexão.');
+            }
             console.error('Error creating order:', error);
             throw error;
         }
