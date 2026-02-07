@@ -71,6 +71,11 @@ export const api = {
 
     async createOrder(data: CreateOrderData): Promise<{ message: string; order_id: number }> {
         console.log('Creating order:', data);
+
+        // Cria um AbortController para timeout de 5 segundos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
         try {
             const response = await fetch(`${API_BASE_URL}/api/public/orders/`, {
                 method: 'POST',
@@ -78,7 +83,10 @@ export const api = {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(data),
+                signal: controller.signal,
             });
+            clearTimeout(timeoutId);
+
             if (!response.ok) {
                 const error = await response.json().catch(() => ({ detail: 'Erro ao enviar pedido' }));
                 throw new Error(error.detail || 'Erro ao enviar pedido');
@@ -87,6 +95,7 @@ export const api = {
             console.log('Order created:', result);
             return result;
         } catch (error) {
+            clearTimeout(timeoutId);
             console.error('Error creating order:', error);
             throw error;
         }
