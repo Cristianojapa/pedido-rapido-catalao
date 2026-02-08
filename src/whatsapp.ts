@@ -1,8 +1,8 @@
 import type { CartItem } from './types';
 import { api } from './api';
 
-// Número de WhatsApp - configurável via variável de ambiente
-const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '5564999194800';
+// Número de WhatsApp para receber pedidos
+const WHATSAPP_NUMBER = '5564999194800';
 
 console.log('WhatsApp number:', WHATSAPP_NUMBER);
 
