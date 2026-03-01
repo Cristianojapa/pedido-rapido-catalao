@@ -393,12 +393,12 @@ body {
 
 .product-price {
     font-weight: 600;
-    color: var(--primary);
+    color: var(--text);
 }
 
 .product-subtotal {
     font-weight: 700;
-    color: var(--success);
+    color: var(--primary);
 }
 
 /* Esconder subtotal mobile no desktop */
@@ -735,7 +735,7 @@ body {
         display: block;
         font-size: 0.6rem;
         font-weight: 600;
-        color: var(--success);
+        color: var(--primary);
     }
 
     /* Quantity input compacto */
