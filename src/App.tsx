@@ -327,6 +327,7 @@ function CatalogPage({ store }: { store: Store }) {
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<Map<string, CartItem>>(new Map());
   const [search, setSearch] = useState('');
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [activeFilters, setActiveFilters] = useState<{
     group: number | null;
     brand: number | null;
@@ -338,6 +339,8 @@ function CatalogPage({ store }: { store: Store }) {
   useEffect(() => {
     api.getFilters(store.id, {}).then(setFilters).catch(console.error);
   }, [store.id]);
+
+  const cartItemsArray = useMemo(() => Array.from(cart.values()), [cart]);
 
   // Ordenar grupos (TELA primeiro)
   const sortedGroups = useMemo(() => {
@@ -491,11 +494,24 @@ function CatalogPage({ store }: { store: Store }) {
           )}
         </div>
 
+        <div className="table-controls" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', padding: '0 1rem' }}>
+          <button
+            className={`btn-selected-filter ${showSelectedOnly ? 'active' : ''}`}
+            onClick={() => setShowSelectedOnly(!showSelectedOnly)}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            Selecionados
+            <span className="selected-badge">{cartItemsArray.length}</span>
+          </button>
+        </div>
+
         <ProductTable
-          products={products}
+          products={showSelectedOnly ? cartItemsArray.map(item => item.product) : products}
           cart={cart}
           onQuantityChange={handleQuantityChange}
-          loading={loading}
+          loading={loading && !showSelectedOnly}
         />
       </div>
 
