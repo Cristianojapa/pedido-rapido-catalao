@@ -464,6 +464,23 @@ body {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.customer-name-input.input-error {
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+
+.customer-name-input.input-error:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.error-text {
+    display: block;
+    color: #dc2626;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    font-weight: 500;
+}
+
 .customer-name-input::placeholder {
     color: #9ca3af;
 }

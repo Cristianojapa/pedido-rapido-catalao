@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import './index.css';
 import { api } from './api';
 import type { Store, Product, Filters, CartItem } from './types';
@@ -218,6 +218,8 @@ function CartSummary({
     return localStorage.getItem('pedido_rapido_customer_name') || '';
   });
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const items = Array.from(cart.values());
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalValue = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
@@ -227,6 +229,7 @@ function CartSummary({
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setCustomerName(value);
+    if (value.trim()) setShowError(false);
     localStorage.setItem('pedido_rapido_customer_name', value);
   };
 
@@ -235,7 +238,9 @@ function CartSummary({
 
     const trimmedName = customerName.trim();
     if (!trimmedName) {
-      alert('Por favor, informe seu nome antes de enviar o pedido.');
+      setShowError(true);
+      setIsExpanded(true); // Abre a gaveta se estiver no mobile
+      setTimeout(() => nameInputRef.current?.focus(), 100);
       return;
     }
 
@@ -285,13 +290,15 @@ function CartSummary({
 
         <div className="cart-customer">
           <input
+            ref={nameInputRef}
             type="text"
             placeholder="Seu nome *"
             value={customerName}
             onChange={handleNameChange}
-            className="customer-name-input"
+            className={`customer-name-input ${showError ? 'input-error' : ''}`}
             disabled={sending}
           />
+          {showError && <span className="error-text">O nome é obrigatório para enviar o pedido.</span>}
         </div>
 
         <div className="cart-actions-group">
@@ -303,7 +310,7 @@ function CartSummary({
           <button
             className="btn btn-finish"
             onClick={handleSendWhatsApp}
-            disabled={sending || !customerName.trim()}
+            disabled={sending}
           >
             {sending ? '⏳...' : 'Finalizar Orçamento'}
           </button>
