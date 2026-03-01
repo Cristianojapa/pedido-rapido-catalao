@@ -13,7 +13,7 @@ export function formatCurrency(value: number): string {
     }).format(value);
 }
 
-export function generateWhatsAppMessage(items: CartItem[], storeName: string, orderId?: number): string {
+export function generateWhatsAppMessage(items: CartItem[], storeName: string, customerName?: string, orderId?: number): string {
     const lines: string[] = [];
 
     if (orderId) {
@@ -23,6 +23,9 @@ export function generateWhatsAppMessage(items: CartItem[], storeName: string, or
     }
 
     lines.push(`📍 Loja: ${storeName}`);
+    if (customerName) {
+        lines.push(`👤 Cliente: ${customerName}`);
+    }
     lines.push('');
     lines.push('*Itens do pedido:*');
 
@@ -50,7 +53,7 @@ export interface OpenWhatsAppResult {
     error?: string;
 }
 
-export async function openWhatsApp(items: CartItem[], storeName: string, storeId: number): Promise<OpenWhatsAppResult> {
+export async function openWhatsApp(items: CartItem[], storeName: string, storeId: number, customerName?: string): Promise<OpenWhatsAppResult> {
     let orderId: number | undefined;
     let orderError: string | undefined;
 
@@ -58,6 +61,7 @@ export async function openWhatsApp(items: CartItem[], storeName: string, storeId
     try {
         const orderData = {
             store: storeId,
+            customer_name: customerName || undefined,
             items: items.map(item => ({
                 product_id: item.product.id,
                 description: item.product.description,
@@ -75,7 +79,7 @@ export async function openWhatsApp(items: CartItem[], storeName: string, storeId
         // Continua para abrir o WhatsApp mesmo se falhar no sistema
     }
 
-    const message = generateWhatsAppMessage(items, storeName, orderId);
+    const message = generateWhatsAppMessage(items, storeName, customerName, orderId);
     const encodedMessage = encodeURIComponent(message);
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMessage}`;
 

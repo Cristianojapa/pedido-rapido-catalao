@@ -214,6 +214,7 @@ function CartSummary({
   onClear: () => void;
 }) {
   const [sending, setSending] = useState(false);
+  const [customerName, setCustomerName] = useState('');
   const items = Array.from(cart.values());
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalValue = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
@@ -223,14 +224,21 @@ function CartSummary({
   const handleSendWhatsApp = async () => {
     if (sending) return; // Evita duplo clique
 
+    const trimmedName = customerName.trim();
+    if (!trimmedName) {
+      alert('Por favor, informe seu nome antes de enviar o pedido.');
+      return;
+    }
+
     setSending(true);
     try {
-      const result = await openWhatsApp(items, storeName, storeId);
+      const result = await openWhatsApp(items, storeName, storeId, trimmedName);
 
       if (result.success) {
         console.log('Pedido #' + result.orderId + ' criado com sucesso!');
         // Limpa o carrinho após envio bem-sucedido
         onClear();
+        setCustomerName('');
       } else if (result.error) {
         console.warn('Pedido enviado para WhatsApp mas não foi salvo no sistema:', result.error);
         // Ainda assim funciona, pois o WhatsApp foi aberto
@@ -253,6 +261,16 @@ function CartSummary({
           <span className="cart-total-value">{formatCurrency(totalValue)}</span>
         </div>
       </div>
+      <div className="cart-customer-name">
+        <input
+          type="text"
+          placeholder="Seu nome *"
+          value={customerName}
+          onChange={(e) => setCustomerName(e.target.value)}
+          className="customer-name-input"
+          disabled={sending}
+        />
+      </div>
       <div className="cart-actions">
         <button className="btn btn-secondary" onClick={onClear} disabled={sending}>
           Limpar
@@ -260,7 +278,7 @@ function CartSummary({
         <button
           className="btn btn-whatsapp"
           onClick={handleSendWhatsApp}
-          disabled={sending}
+          disabled={sending || !customerName.trim()}
         >
           {sending ? '⏳ Enviando...' : '📱 Enviar WhatsApp'}
         </button>
