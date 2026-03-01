@@ -217,6 +217,7 @@ function CartSummary({
   const [customerName, setCustomerName] = useState(() => {
     return localStorage.getItem('pedido_rapido_customer_name') || '';
   });
+  const [isExpanded, setIsExpanded] = useState(false);
   const items = Array.from(cart.values());
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalValue = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
@@ -255,9 +256,27 @@ function CartSummary({
   };
 
   return (
-    <div className="cart-summary">
+    <div className={`cart-summary ${isExpanded ? 'expanded' : ''}`}>
+      {/* Mobile Top Bar (Header) - Toggle logic */}
+      <div
+        className="cart-mobile-header hide-desktop"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="cart-total-titles">
+          <span className="cart-total-heading">Total do Orçamento</span>
+          <span className="cart-total-subtitle">{totalItems} item(ns)</span>
+        </div>
+        <div className="cart-mobile-header-right">
+          <span className="cart-final-price">{formatCurrency(totalValue)}</span>
+          <svg className={`chevron-icon ${isExpanded ? 'up' : 'down'}`} viewBox="0 0 24 24" width="24" height="24">
+            <path d="M7 10l5 5 5-5" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      </div>
+
       <div className="cart-summary-inner">
-        <div className="cart-info-group">
+        {/* Desktop Info Group */}
+        <div className="cart-info-group hide-mobile">
           <div className="cart-total-titles">
             <span className="cart-total-heading">Total do Orçamento</span>
             <span className="cart-total-subtitle">{totalItems} item(ns)</span>
@@ -276,9 +295,10 @@ function CartSummary({
         </div>
 
         <div className="cart-actions-group">
-          <span className="cart-final-price">{formatCurrency(totalValue)}</span>
+          <span className="cart-final-price hide-mobile">{formatCurrency(totalValue)}</span>
           <button className="btn btn-secondary btn-clear" onClick={onClear} disabled={sending}>
-            Limpar 🗑️
+            <span className="hide-mobile">Limpar 🗑️</span>
+            <span className="show-mobile-inline">Limpar Orçamento</span>
           </button>
           <button
             className="btn btn-finish"
