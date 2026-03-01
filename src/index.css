@@ -29,16 +29,18 @@ body {
 
 /* Header */
 .header {
-    background: var(--card-bg);
-    padding: 1rem 2rem;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 0.75rem 2rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
     position: sticky;
     top: 0;
     z-index: 100;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(224, 229, 242, 0.6);
 }
 
 .header-brand {
@@ -57,25 +59,45 @@ body {
 }
 
 .header .logo {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.875rem;
-    color: white;
+    height: 50px;
+    width: auto;
+    object-fit: contain;
+    transition: transform 0.2s ease;
 }
 
-.store-badge {
-    background: var(--primary-light);
-    color: var(--primary);
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    font-size: 0.875rem;
+.header .logo:hover {
+    transform: scale(1.02);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+}
+
+.store-location {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem 0.875rem;
+    border-radius: 9999px;
+    /* Pill shape */
+    color: #475569;
+    font-size: 0.85rem;
     font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: all 0.2s;
+}
+
+.store-location:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+.store-location svg {
+    color: var(--primary);
 }
 
 /* Container */

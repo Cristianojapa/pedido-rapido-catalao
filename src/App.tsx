@@ -9,12 +9,18 @@ function Header({ storeName }: { storeName?: string }) {
   return (
     <header className="header">
       <div className="header-brand">
-        <span className="logo">PR</span>
-        <h1>Pedido Rápido</h1>
+        <img src="/icons/Logo Center Cell.jpeg" alt="Center Peças" className="logo" />
+        <h1>Center Peças</h1>
       </div>
       {storeName && (
-        <div className="store-badge">
-          📍 {storeName}
+        <div className="header-actions">
+          <div className="store-location">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            <span>{storeName.replace('CENTER PEÇAS - ', '')}</span>
+          </div>
         </div>
       )}
     </header>
