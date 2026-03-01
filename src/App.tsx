@@ -214,15 +214,23 @@ function CartSummary({
   onClear: () => void;
 }) {
   const [sending, setSending] = useState(false);
-  const [customerName, setCustomerName] = useState('');
+  const [customerName, setCustomerName] = useState(() => {
+    return localStorage.getItem('pedido_rapido_customer_name') || '';
+  });
   const items = Array.from(cart.values());
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalValue = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
 
   if (totalItems === 0) return null;
 
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomerName(value);
+    localStorage.setItem('pedido_rapido_customer_name', value);
+  };
+
   const handleSendWhatsApp = async () => {
-    if (sending) return; // Evita duplo clique
+    if (sending) return;
 
     const trimmedName = customerName.trim();
     if (!trimmedName) {
@@ -236,52 +244,50 @@ function CartSummary({
 
       if (result.success) {
         console.log('Pedido #' + result.orderId + ' criado com sucesso!');
-        // Limpa o carrinho após envio bem-sucedido
         onClear();
-        setCustomerName('');
       } else if (result.error) {
         console.warn('Pedido enviado para WhatsApp mas não foi salvo no sistema:', result.error);
-        // Ainda assim funciona, pois o WhatsApp foi aberto
       }
     } catch (error) {
       console.error('Erro ao enviar pedido:', error);
       alert('Erro ao enviar pedido. Por favor, tente novamente.');
-    } finally {
-      // Não reseta o sending aqui pois a página vai redirecionar para WhatsApp
-      // O estado será resetado quando a página for carregada novamente
     }
   };
 
   return (
     <div className="cart-summary">
-      <div className="cart-info">
-        <span className="cart-items-count">{totalItems} item(ns)</span>
-        <div className="cart-total">
-          <span className="cart-total-label">Total do Orçamento</span>
-          <span className="cart-total-value">{formatCurrency(totalValue)}</span>
+      <div className="cart-summary-inner">
+        <div className="cart-info-group">
+          <div className="cart-total-titles">
+            <span className="cart-total-heading">Total do Orçamento</span>
+            <span className="cart-total-subtitle">{totalItems} item(ns)</span>
+          </div>
         </div>
-      </div>
-      <div className="cart-customer-name">
-        <input
-          type="text"
-          placeholder="Seu nome *"
-          value={customerName}
-          onChange={(e) => setCustomerName(e.target.value)}
-          className="customer-name-input"
-          disabled={sending}
-        />
-      </div>
-      <div className="cart-actions">
-        <button className="btn btn-secondary" onClick={onClear} disabled={sending}>
-          Limpar
-        </button>
-        <button
-          className="btn btn-whatsapp"
-          onClick={handleSendWhatsApp}
-          disabled={sending || !customerName.trim()}
-        >
-          {sending ? '⏳ Enviando...' : '📱 Enviar WhatsApp'}
-        </button>
+
+        <div className="cart-customer">
+          <input
+            type="text"
+            placeholder="Seu nome *"
+            value={customerName}
+            onChange={handleNameChange}
+            className="customer-name-input"
+            disabled={sending}
+          />
+        </div>
+
+        <div className="cart-actions-group">
+          <span className="cart-final-price">{formatCurrency(totalValue)}</span>
+          <button className="btn btn-secondary btn-clear" onClick={onClear} disabled={sending}>
+            Limpar 🗑️
+          </button>
+          <button
+            className="btn btn-finish"
+            onClick={handleSendWhatsApp}
+            disabled={sending || !customerName.trim()}
+          >
+            {sending ? '⏳...' : 'Finalizar Orçamento'}
+          </button>
+        </div>
       </div>
     </div>
   );
