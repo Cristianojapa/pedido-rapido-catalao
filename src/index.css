@@ -576,6 +576,10 @@ body {
     }
 }
 
+.hide-desktop {
+    display: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .container {

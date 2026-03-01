@@ -305,7 +305,7 @@ function CartSummary({
           <span className="cart-final-price hide-mobile">{formatCurrency(totalValue)}</span>
           <button className="btn btn-secondary btn-clear" onClick={onClear} disabled={sending}>
             <span className="hide-mobile">Limpar 🗑️</span>
-            <span className="show-mobile-inline">Limpar Orçamento</span>
+            <span className="hide-desktop">Limpar Orçamento</span>
           </button>
           <button
             className="btn btn-finish"
