@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['vite.svg', 'icons/icon-192x192.png', 'icons/icon-512x512.png'],
+      includeAssets: ['vite.svg', 'icons/icon-192x192.jpeg', 'icons/icon-512x512.jpeg'],
       manifest: {
         name: 'Catálogo Center Peças',
         short_name: 'Center Peças',
@@ -20,15 +20,15 @@ export default defineConfig({
         scope: '/',
         icons: [
           {
-            src: '/icons/icon-192x192.png',
+            src: '/icons/icon-192x192.jpeg',
             sizes: '192x192',
-            type: 'image/png',
+            type: 'image/jpeg',
             purpose: 'any maskable',
           },
           {
-            src: '/icons/icon-512x512.png',
+            src: '/icons/icon-512x512.jpeg',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/jpeg',
             purpose: 'any maskable',
           },
         ],
