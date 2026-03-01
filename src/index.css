@@ -62,6 +62,9 @@ body {
     height: 50px;
     width: auto;
     object-fit: contain;
+    border-radius: 12px;
+    mix-blend-mode: multiply;
+    /* Faz o fundo branco do JPEG sumir e integrar com o header */
     transition: transform 0.2s ease;
 }
 
