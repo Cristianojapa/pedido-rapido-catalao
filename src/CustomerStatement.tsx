@@ -9,21 +9,20 @@ function formatCurrency(value: number): string {
     }).format(value);
 }
 
-// Movement type labels and colors
-const MOVEMENT_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-    VENDA: { label: 'Venda', color: '#ef4444', icon: '🛒' },
-    CANCELAMENTO: { label: 'Cancelamento', color: '#22c55e', icon: '❌' },
-    PAGAMENTO: { label: 'Pagamento', color: '#22c55e', icon: '💰' },
-    PAGAMENTO_CANCELADO: { label: 'Pgto Cancelado', color: '#ef4444', icon: '⚠️' },
-    REEMBOLSO: { label: 'Reembolso', color: '#ef4444', icon: '↩️' },
-    DEVOLUCAO: { label: 'Devolução', color: '#22c55e', icon: '📦' },
-    DIVIDA_HISTORICA: { label: 'Saldo Anterior', color: '#6b7280', icon: '📋' },
-    CREDITO_REEMBOLSO: { label: 'Crédito', color: '#22c55e', icon: '💳' },
-    SALDO_ANTERIOR: { label: 'Saldo Anterior', color: '#6b7280', icon: '📋' },
+const MOVEMENT_CONFIG: Record<string, { label: string; color: string; bgColor: string; icon: string }> = {
+    VENDA: { label: 'Compra', color: '#1d4ed8', bgColor: '#eff6ff', icon: '🛒' },
+    CANCELAMENTO: { label: 'Cancelamento', color: '#b91c1c', bgColor: '#fef2f2', icon: '❌' },
+    PAGAMENTO: { label: 'Pagamento', color: '#15803d', bgColor: '#f0fdf4', icon: '💰' },
+    PAGAMENTO_CANCELADO: { label: 'Pgto Cancelado', color: '#b91c1c', bgColor: '#fef2f2', icon: '⚠️' },
+    REEMBOLSO: { label: 'Reembolso', color: '#1d4ed8', bgColor: '#eff6ff', icon: '↩️' },
+    DEVOLUCAO: { label: 'Devolução', color: '#0f766e', bgColor: '#f0fdfa', icon: '📦' },
+    DIVIDA_HISTORICA: { label: 'Dívida Histórica', color: '#b45309', bgColor: '#fffbeb', icon: '📋' },
+    CREDITO_REEMBOLSO: { label: 'Crédito', color: '#15803d', bgColor: '#f0fdf4', icon: '💳' },
+    SALDO_ANTERIOR: { label: 'Saldo Anterior', color: '#4f46e5', bgColor: '#eef2ff', icon: '📋' },
 };
 
 function getMovementConfig(type: string) {
-    return MOVEMENT_CONFIG[type] || { label: type, color: '#6b7280', icon: '•' };
+    return MOVEMENT_CONFIG[type] || { label: type, color: '#374151', bgColor: '#f3f4f6', icon: '•' };
 }
 
 interface CustomerStatementProps {
@@ -182,7 +181,7 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
                                         <tr key={i} className={`movement-row movement-${m.type.toLowerCase()}`}>
                                             <td className="movement-date">{m.date || '—'}</td>
                                             <td>
-                                                <span className="movement-badge" style={{ backgroundColor: config.color + '20', color: config.color }}>
+                                                <span className="movement-badge" style={{ backgroundColor: config.bgColor, color: config.color }}>
                                                     {config.icon} {config.label}
                                                 </span>
                                             </td>
