@@ -3,17 +3,30 @@ import './index.css';
 import { api } from './api';
 import type { Store, Product, Filters, CartItem } from './types';
 import { formatCurrency, openWhatsApp } from './whatsapp';
+import type { CustomerPortalUser } from './customerAuth';
+import { getSavedUser, clearAuth } from './customerAuth';
+import CustomerLogin from './CustomerLogin';
+import CustomerStatement from './CustomerStatement';
+
+type Page = 'catalog' | 'login' | 'statement';
 
 // Header Component
-function Header({ storeName }: { storeName?: string }) {
+function Header({ storeName, user, onLoginClick, onStatementClick, onLogout, onLogoClick }: {
+  storeName?: string;
+  user: CustomerPortalUser | null;
+  onLoginClick: () => void;
+  onStatementClick: () => void;
+  onLogout: () => void;
+  onLogoClick: () => void;
+}) {
   return (
     <header className="header">
-      <div className="header-brand">
+      <div className="header-brand" onClick={onLogoClick} style={{ cursor: 'pointer' }}>
         <img src="/icons/Logo Center Cell.jpeg" alt="Center Peças" className="logo" />
         <h1>Center Peças</h1>
       </div>
-      {storeName && (
-        <div className="header-actions">
+      <div className="header-actions">
+        {storeName && (
           <div className="store-location">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
@@ -21,8 +34,44 @@ function Header({ storeName }: { storeName?: string }) {
             </svg>
             <span>{storeName.replace('CENTER PEÇAS - ', '')}</span>
           </div>
+        )}
+        <div className="header-auth">
+          {user ? (
+            <>
+              <button className="btn-header-action" onClick={onStatementClick} title="Meu Extrato">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span className="hide-mobile">Extrato</span>
+              </button>
+              <div className="user-menu">
+                <span className="user-name hide-mobile">👤 {user.name.split(' ')[0]}</span>
+                <button className="btn-header-action btn-logout" onClick={onLogout} title="Sair">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                  <span className="hide-mobile">Sair</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <button className="btn-header-action btn-login-header" onClick={onLoginClick}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                <polyline points="10 17 15 12 10 7"></polyline>
+                <line x1="15" y1="12" x2="3" y2="12"></line>
+              </svg>
+              <span>Entrar</span>
+            </button>
+          )}
         </div>
-      )}
+      </div>
     </header>
   );
 }
@@ -212,15 +261,19 @@ function CartSummary({
   cart,
   storeName,
   storeId,
-  onClear
+  onClear,
+  loggedInUser
 }: {
   cart: Map<string, CartItem>;
   storeName: string;
   storeId: number;
   onClear: () => void;
+  loggedInUser: CustomerPortalUser | null;
 }) {
   const [sending, setSending] = useState(false);
   const [customerName, setCustomerName] = useState(() => {
+    // If logged in, use the user's name
+    if (loggedInUser) return loggedInUser.name;
     return localStorage.getItem('pedido_rapido_customer_name') || '';
   });
   const [isExpanded, setIsExpanded] = useState(false);
@@ -229,6 +282,13 @@ function CartSummary({
   const items = Array.from(cart.values());
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalValue = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+
+  // Update name when user logs in/out
+  useEffect(() => {
+    if (loggedInUser) {
+      setCustomerName(loggedInUser.name);
+    }
+  }, [loggedInUser]);
 
   if (totalItems === 0) return null;
 
@@ -302,8 +362,10 @@ function CartSummary({
             value={customerName}
             onChange={handleNameChange}
             className={`customer-name-input ${showError ? 'input-error' : ''}`}
-            disabled={sending}
+            disabled={sending || !!loggedInUser}
+            readOnly={!!loggedInUser}
           />
+          {loggedInUser && <span className="logged-in-badge">✓ Logado</span>}
           {showError && <span className="error-text">O nome é obrigatório para enviar o pedido.</span>}
         </div>
 
@@ -327,7 +389,7 @@ function CartSummary({
 }
 
 // Catalog Page Component
-function CatalogPage({ store }: { store: Store }) {
+function CatalogPage({ store, user }: { store: Store; user: CustomerPortalUser | null }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [filters, setFilters] = useState<Filters>({ groups: [], brands: [], categories: [], colors: [] });
   const [loading, setLoading] = useState(true);
@@ -442,7 +504,6 @@ function CatalogPage({ store }: { store: Store }) {
 
   return (
     <>
-      <Header storeName={store.name} />
       <div className="container">
         <div className="page-title">
           <h2>Catálogo de Produtos</h2>
@@ -521,7 +582,7 @@ function CatalogPage({ store }: { store: Store }) {
         />
       </div>
 
-      <CartSummary cart={cart} storeName={store.name} storeId={store.id} onClear={handleClearCart} />
+      <CartSummary cart={cart} storeName={store.name} storeId={store.id} onClear={handleClearCart} loggedInUser={user} />
     </>
   );
 }
@@ -532,6 +593,8 @@ function App() {
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<Page>('catalog');
+  const [portalUser, setPortalUser] = useState<CustomerPortalUser | null>(() => getSavedUser());
 
   useEffect(() => {
     api.getStores()
@@ -553,14 +616,85 @@ function App() {
       });
   }, []);
 
+  const handleLoginSuccess = (user: CustomerPortalUser) => {
+    setPortalUser(user);
+    setCurrentPage('catalog');
+  };
+
+  const handleLogout = () => {
+    clearAuth();
+    setPortalUser(null);
+    setCurrentPage('catalog');
+  };
+
+  const handleLogoClick = () => {
+    setCurrentPage('catalog');
+  };
+
+  // Login Page
+  if (currentPage === 'login') {
+    return (
+      <>
+        <Header
+          storeName={selectedStore?.name}
+          user={portalUser}
+          onLoginClick={() => setCurrentPage('login')}
+          onStatementClick={() => setCurrentPage('statement')}
+          onLogout={handleLogout}
+          onLogoClick={handleLogoClick}
+        />
+        <CustomerLogin
+          onLoginSuccess={handleLoginSuccess}
+          onBack={() => setCurrentPage('catalog')}
+        />
+      </>
+    );
+  }
+
+  // Statement Page
+  if (currentPage === 'statement') {
+    return (
+      <>
+        <Header
+          storeName={selectedStore?.name}
+          user={portalUser}
+          onLoginClick={() => setCurrentPage('login')}
+          onStatementClick={() => setCurrentPage('statement')}
+          onLogout={handleLogout}
+          onLogoClick={handleLogoClick}
+        />
+        <CustomerStatement onBack={() => setCurrentPage('catalog')} />
+      </>
+    );
+  }
+
+  // Catalog
   if (selectedStore) {
-    return <CatalogPage store={selectedStore} />;
+    return (
+      <>
+        <Header
+          storeName={selectedStore.name}
+          user={portalUser}
+          onLoginClick={() => setCurrentPage('login')}
+          onStatementClick={() => setCurrentPage('statement')}
+          onLogout={handleLogout}
+          onLogoClick={handleLogoClick}
+        />
+        <CatalogPage store={selectedStore} user={portalUser} />
+      </>
+    );
   }
 
   if (error) {
     return (
       <>
-        <Header />
+        <Header
+          user={portalUser}
+          onLoginClick={() => setCurrentPage('login')}
+          onStatementClick={() => setCurrentPage('statement')}
+          onLogout={handleLogout}
+          onLogoClick={handleLogoClick}
+        />
         <div className="store-select-page">
           <div className="empty-state">
             <p>❌ {error}</p>
@@ -575,7 +709,13 @@ function App() {
 
   return (
     <>
-      <Header />
+      <Header
+        user={portalUser}
+        onLoginClick={() => setCurrentPage('login')}
+        onStatementClick={() => setCurrentPage('statement')}
+        onLogout={handleLogout}
+        onLogoClick={handleLogoClick}
+      />
       <StoreSelectPage stores={stores} onSelect={setSelectedStore} loading={loading} />
     </>
   );
