@@ -162,8 +162,8 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
 
             {!loading && !error && statement && (
                 <>
-                    {/* Desktop Table View */}
-                    <div className="statement-table-wrapper hide-mobile">
+                    {/* Desktop & Mobile Table View */}
+                    <div className="statement-table-wrapper">
                         <table className="statement-table">
                             <thead>
                                 <tr>
@@ -204,35 +204,6 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
                         </table>
                     </div>
 
-                    {/* Mobile Card View */}
-                    <div className="statement-cards hide-desktop">
-                        {statement.movements.map((m: StatementMovement, i: number) => {
-                            const config = getMovementConfig(m.type);
-                            return (
-                                <div key={i} className="statement-card">
-                                    <div className="statement-card-header">
-                                        <span className="movement-badge" style={{ backgroundColor: config.color + '20', color: config.color }}>
-                                            {config.icon} {config.label}
-                                        </span>
-                                        <span className="statement-card-date">{m.date || '—'}</span>
-                                    </div>
-                                    <p className="statement-card-desc">{m.description}</p>
-                                    <div className="statement-card-values">
-                                        {m.debit > 0 && (
-                                            <span className="debit">Débito: {formatCurrency(m.debit)}</span>
-                                        )}
-                                        {m.credit > 0 && (
-                                            <span className="credit">Crédito: {formatCurrency(m.credit)}</span>
-                                        )}
-                                        <span className={`balance ${m.running_balance > 0 ? 'negative' : m.running_balance < 0 ? 'positive' : ''}`}>
-                                            Saldo: {formatCurrency(Math.abs(m.running_balance))}
-                                            {m.running_balance > 0 ? ' D' : m.running_balance < 0 ? ' C' : ''}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
 
                     {statement.movements.length === 0 && (
                         <div className="empty-state">Nenhuma movimentação encontrada.</div>
