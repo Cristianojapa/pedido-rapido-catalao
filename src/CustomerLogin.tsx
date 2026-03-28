@@ -144,7 +144,7 @@ export default function CustomerLogin({ onLoginSuccess, onBack }: CustomerLoginP
                                 }
                             }}
                             disabled={loading}
-                            autoComplete="off"
+                            autoComplete="current-password"
                         />
                     </div>
 
@@ -158,7 +158,7 @@ export default function CustomerLogin({ onLoginSuccess, onBack }: CustomerLoginP
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 disabled={loading}
-                                autoComplete="off"
+                                autoComplete="name"
                             />
                         </div>
                     )}
@@ -172,7 +172,7 @@ export default function CustomerLogin({ onLoginSuccess, onBack }: CustomerLoginP
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             disabled={loading}
-                            autoComplete="off"
+                            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                         />
                     </div>
 
@@ -186,7 +186,7 @@ export default function CustomerLogin({ onLoginSuccess, onBack }: CustomerLoginP
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 disabled={loading}
-                                autoComplete="off"
+                                autoComplete="new-password"
                             />
                         </div>
                     )}
