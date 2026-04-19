@@ -127,6 +127,59 @@ const GROUP_ORDER: Record<string, number> = {
   'FERRAMENTAS': 7,
 };
 
+const MODEL_KEY_PATTERN = /(?:^|[^a-z0-9])([a-z])\s*(\d{1,4})[a-z]*(?=$|[^a-z0-9])/;
+const PRODUCT_SORT_COLLATOR = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' });
+
+function normalizeProductDescription(description: string): string {
+  return description
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s-]+/g, ' ')
+    .trim();
+}
+
+function extractModelKeyFromNormalizedDescription(normalizedDescription: string): string {
+  const match = normalizedDescription.match(MODEL_KEY_PATTERN);
+  if (!match) return '';
+  return `${match[1]}${match[2]}`;
+}
+
+function extractModelKey(description: string): string {
+  return extractModelKeyFromNormalizedDescription(normalizeProductDescription(description));
+}
+
+function sortCatalogProducts(products: Product[]): Product[] {
+  return products
+    .map((product) => {
+      const normalizedDescription = normalizeProductDescription(product.description);
+      return {
+        product,
+        normalizedDescription,
+        modelKey: extractModelKey(product.description),
+      };
+    })
+    .sort((a, b) => {
+      if (a.modelKey !== b.modelKey) {
+        if (!a.modelKey) return 1;
+        if (!b.modelKey) return -1;
+        return PRODUCT_SORT_COLLATOR.compare(a.modelKey, b.modelKey);
+      }
+
+      const descriptionComparison = PRODUCT_SORT_COLLATOR.compare(
+        a.normalizedDescription,
+        b.normalizedDescription
+      );
+
+      if (descriptionComparison !== 0) {
+        return descriptionComparison;
+      }
+
+      return PRODUCT_SORT_COLLATOR.compare(String(a.product.id), String(b.product.id));
+    })
+    .map(({ product }) => product);
+}
+
 // Filter Chips Component - Estilo Moderno
 function FilterChips({
   label,
@@ -450,7 +503,7 @@ function CatalogPage({ store, user }: { store: Store; user: CustomerPortalUser |
         color: activeFilters.color || undefined,
         search: search || undefined,
       });
-      setProducts(data.products);
+      setProducts(sortCatalogProducts(data.products));
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
