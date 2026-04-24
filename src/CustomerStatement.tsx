@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { customerApi } from './customerAuth';
 import type { StatementResponse, StatementMovement } from './customerAuth';
 
+const DEFAULT_STATEMENT_DAYS = 7;
 const STATEMENT_WINDOW_DAYS = 30;
 
 function formatCurrency(value: number): string {
@@ -66,13 +67,25 @@ function parseMovementDate(value: string | null): number {
     return Number.isNaN(parsedTimestamp) ? Number.NEGATIVE_INFINITY : parsedTimestamp;
 }
 
-function getStatementDateLimits() {
-    const maxDate = getStartOfDay();
-    const minDate = addDays(maxDate, -(STATEMENT_WINDOW_DAYS - 1));
+function getRangeForLastDays(days: number) {
+    const endDate = getStartOfDay();
+    const startDate = addDays(endDate, -(days - 1));
 
     return {
-        minDate: formatDateInput(minDate),
-        maxDate: formatDateInput(maxDate),
+        startDate: formatDateInput(startDate),
+        endDate: formatDateInput(endDate),
+    };
+}
+
+function getStatementDateConfig() {
+    const defaultRange = getRangeForLastDays(DEFAULT_STATEMENT_DAYS);
+    const maxRange = getRangeForLastDays(STATEMENT_WINDOW_DAYS);
+
+    return {
+        defaultStartDate: defaultRange.startDate,
+        defaultEndDate: defaultRange.endDate,
+        minDate: maxRange.startDate,
+        maxDate: maxRange.endDate,
     };
 }
 
@@ -120,9 +133,10 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [notLinked, setNotLinked] = useState(false);
-    const [{ minDate, maxDate }] = useState(getStatementDateLimits);
-    const [startDate, setStartDate] = useState(() => minDate);
-    const [endDate, setEndDate] = useState(() => maxDate);
+    const [showFilters, setShowFilters] = useState(false);
+    const [{ defaultStartDate, defaultEndDate, minDate, maxDate }] = useState(getStatementDateConfig);
+    const [startDate, setStartDate] = useState(() => defaultStartDate);
+    const [endDate, setEndDate] = useState(() => defaultEndDate);
 
     const loadStatement = useCallback(async () => {
         setLoading(true);
@@ -151,7 +165,12 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
         loadStatement();
     }, [loadStatement]);
 
-    const handleClearFilters = () => {
+    const handleShowLast7Days = () => {
+        setStartDate(defaultStartDate);
+        setEndDate(defaultEndDate);
+    };
+
+    const handleShowLast30Days = () => {
         setStartDate(minDate);
         setEndDate(maxDate);
     };
@@ -266,34 +285,55 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
             )}
 
             <div className="statement-filters">
-                <p className="statement-customer-name">Exibindo no máximo os últimos 30 dias.</p>
-                <div className="statement-filter-row">
-                    <div className="statement-filter-field">
-                        <label>De:</label>
-                        <input
-                            type="date"
-                            value={startDate}
-                            min={minDate}
-                            max={endDate}
-                            onChange={(e) => handleStartDateChange(e.target.value)}
-                        />
-                    </div>
-                    <div className="statement-filter-field">
-                        <label>Até:</label>
-                        <input
-                            type="date"
-                            value={endDate}
-                            min={startDate}
-                            max={maxDate}
-                            onChange={(e) => handleEndDateChange(e.target.value)}
-                        />
-                    </div>
-                    {(startDate !== minDate || endDate !== maxDate) && (
-                        <button className="btn btn-secondary btn-sm" onClick={handleClearFilters}>
-                            Limpar
-                        </button>
-                    )}
+                <div className="statement-filter-summary">
+                    <p className="statement-customer-name">
+                        Mostrando os últimos 7 dias ao abrir. Abra o filtro para consultar até 30 dias.
+                    </p>
+                    <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setShowFilters((currentValue) => !currentValue)}
+                        type="button"
+                    >
+                        {showFilters ? 'Fechar filtro' : 'Abrir filtro'}
+                    </button>
                 </div>
+
+                {showFilters && (
+                    <div className="statement-filter-row">
+                        <div className="statement-filter-field">
+                            <label>De:</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                min={minDate}
+                                max={endDate}
+                                onChange={(e) => handleStartDateChange(e.target.value)}
+                            />
+                        </div>
+                        <div className="statement-filter-field">
+                            <label>Até:</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                min={startDate}
+                                max={maxDate}
+                                onChange={(e) => handleEndDateChange(e.target.value)}
+                            />
+                        </div>
+                        <div className="statement-filter-actions">
+                            {(startDate !== minDate || endDate !== maxDate) && (
+                                <button className="btn btn-secondary btn-sm" onClick={handleShowLast30Days} type="button">
+                                    Últimos 30 dias
+                                </button>
+                            )}
+                            {(startDate !== defaultStartDate || endDate !== defaultEndDate) && (
+                                <button className="btn btn-secondary btn-sm" onClick={handleShowLast7Days} type="button">
+                                    Voltar para 7 dias
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {loading && <div className="loading">Carregando extrato...</div>}

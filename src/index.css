@@ -1270,10 +1270,26 @@ body {
     margin-bottom: 1.5rem;
 }
 
+.statement-filter-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
 .statement-filter-row {
     display: flex;
     align-items: flex-end;
     gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.statement-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     flex-wrap: wrap;
 }
 
@@ -1516,10 +1532,19 @@ body {
         align-items: stretch;
     }
 
+    .statement-filter-summary {
+        align-items: stretch;
+    }
+
     .statement-filter-field {
         flex-direction: row;
         align-items: center;
         gap: 0.5rem;
+    }
+
+    .statement-filter-actions {
+        width: 100%;
+        justify-content: flex-start;
     }
 
     .statement-table-wrapper {
