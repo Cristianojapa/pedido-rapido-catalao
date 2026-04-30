@@ -204,24 +204,10 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
             ).getTime()
             : Number.POSITIVE_INFINITY;
 
-        return statement.movements
-            .map((movement, index) => ({
-                movement,
-                index,
-                timestamp: parseMovementDate(movement.date),
-            }))
-            .filter(({ movement, timestamp }) => movement.date === null || (timestamp >= startTimestamp && timestamp <= endTimestamp))
-            .sort((movementA, movementB) => {
-                const dateDifference = movementB.timestamp - movementA.timestamp;
-                if (dateDifference !== 0) return dateDifference;
-
-                const referenceA = movementA.movement.reference_id ?? -1;
-                const referenceB = movementB.movement.reference_id ?? -1;
-                if (referenceA !== referenceB) return referenceB - referenceA;
-
-                return movementB.index - movementA.index;
-            })
-            .map(({ movement }) => movement);
+        return statement.movements.filter((movement) => {
+            const timestamp = parseMovementDate(movement.date);
+            return movement.date === null || (timestamp >= startTimestamp && timestamp <= endTimestamp);
+        });
     }, [endDate, startDate, statement]);
 
     if (notLinked) {
