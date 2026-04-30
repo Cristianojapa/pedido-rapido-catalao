@@ -261,12 +261,6 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
                                     : 'R$ 0,00'}
                         </span>
                     </div>
-                    {statement.credit_balance > 0 && (
-                        <div className="balance-card positive">
-                            <span className="balance-label">Crédito Disponível</span>
-                            <span className="balance-value">{formatCurrency(statement.credit_balance)}</span>
-                        </div>
-                    )}
                 </div>
             )}
 
