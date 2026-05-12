@@ -249,20 +249,7 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
                 </div>
             </div>
 
-            {statement && (
-                <div className="statement-balance-cards">
-                    <div className={`balance-card ${statement.current_balance > 0 ? 'negative' : 'positive'}`}>
-                        <span className="balance-label">Saldo Atual</span>
-                        <span className="balance-value">
-                            {statement.current_balance > 0
-                                ? `${formatCurrency(statement.current_balance)} devedor`
-                                : statement.current_balance < 0
-                                    ? `${formatCurrency(Math.abs(statement.current_balance))} crédito`
-                                    : 'R$ 0,00'}
-                        </span>
-                    </div>
-                </div>
-            )}
+
 
             <div className="statement-filters">
                 <div className="statement-filter-summary">
@@ -330,7 +317,6 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
                                     <th>Descrição</th>
                                     <th className="text-right">Débito</th>
                                     <th className="text-right">Crédito</th>
-                                    <th className="text-right">Saldo</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -350,10 +336,6 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
                                             </td>
                                             <td className="text-right credit">
                                                 {movement.credit > 0 ? formatCurrency(movement.credit) : ''}
-                                            </td>
-                                            <td className={`text-right balance ${movement.running_balance > 0 ? 'negative' : movement.running_balance < 0 ? 'positive' : ''}`}>
-                                                {formatCurrency(Math.abs(movement.running_balance))}
-                                                {movement.running_balance > 0 ? ' D' : movement.running_balance < 0 ? ' C' : ''}
                                             </td>
                                         </tr>
                                     );
