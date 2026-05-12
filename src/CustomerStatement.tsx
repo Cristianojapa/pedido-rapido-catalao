@@ -204,9 +204,18 @@ export default function CustomerStatement({ onBack }: CustomerStatementProps) {
             ).getTime()
             : Number.POSITIVE_INFINITY;
 
-        return statement.movements.filter((movement) => {
+        const filtered = statement.movements.filter((movement) => {
             const timestamp = parseMovementDate(movement.date);
             return movement.date === null || (timestamp >= startTimestamp && timestamp <= endTimestamp);
+        });
+
+        // Invertemos a ordem original (que vem do banco do mais antigo para o mais novo)
+        // e depois aplicamos um sort estável por data para garantir que dias diferentes fiquem na ordem certa,
+        // mas mantendo a inversão correta dentro de cada dia.
+        return [...filtered].reverse().sort((a, b) => {
+            const timeA = parseMovementDate(a.date);
+            const timeB = parseMovementDate(b.date);
+            return timeB - timeA;
         });
     }, [endDate, startDate, statement]);
 
