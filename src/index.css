@@ -1549,12 +1549,34 @@ body {
 
     .statement-table-wrapper {
         border-radius: 12px;
-        margin: 0 -0.5rem; /* Faz a tabela ocupar toda a largura no mobile */
-        width: calc(100% + 1rem);
+        margin: 0; 
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     
+    .statement-table {
+        min-width: 450px; /* Reduzido de 600px para evitar muito scroll horizontal */
+    }
+
     .statement-table th, 
     .statement-table td {
-        padding: 0.75rem 0.5rem;
+        padding: 0.6rem 0.4rem;
+        font-size: 0.75rem;
+    }
+
+    .movement-badge {
+        padding: 0.15rem 0.4rem;
+        font-size: 0.65rem;
+        gap: 0.2rem;
+    }
+
+    .movement-date {
+        font-size: 0.7rem;
+    }
+
+    .movement-desc {
+        max-width: 150px;
+        font-size: 0.75rem;
     }
 }
