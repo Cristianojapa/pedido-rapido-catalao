@@ -1702,62 +1702,10 @@ body .chip.active {
         font-size: 0.7rem;
     }
 }
-/* Mobile header: preserve the original public layout with the employee shortcut. */
-@media (max-width: 480px) {
-    body .header {
-        min-height: 64px;
-        padding: 0.6rem 0.7rem;
-        gap: 0.4rem;
-    }
 
-    .header-brand {
-        min-width: 0;
-        flex: 0 1 auto;
-        gap: 0.45rem;
-    }
-
-    body .header .logo {
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
-    }
-
-    body .header h1 {
-        max-width: 52px;
-        font-size: 0.9rem;
-        line-height: 1.05;
-    }
-
-    .header-actions {
-        flex: 0 0 auto;
-        gap: 0.35rem;
-    }
-
-    .store-location {
-        gap: 0.25rem;
-        padding: 0.4rem 0.5rem;
-        font-size: 0.65rem;
-    }
-
-    .store-location svg {
-        width: 14px;
-        height: 14px;
-        flex: 0 0 14px;
-    }
-
-    .header-auth {
-        gap: 0.25rem;
-    }
-
-    .btn-header-action {
-        width: 36px;
-        height: 36px;
-        padding: 0;
-        justify-content: center;
-    }
-
-    .btn-login-header {
-        width: auto;
-        padding: 0 0.65rem;
+/* No mobile, o cabeçalho público permanece idêntico à versão anterior. */
+@media (max-width: 768px) {
+    .btn-employee-header {
+        display: none;
     }
 }
