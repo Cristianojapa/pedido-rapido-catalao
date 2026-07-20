@@ -1,5 +1,5 @@
 // Customer Portal Auth API
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.xn--centerpeasatacado-hsb.com.br';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.xn--centerpeasatacado-hsb.com.br';
 
 const TOKEN_KEY = 'customer_portal_token';
 const REFRESH_KEY = 'customer_portal_refresh';

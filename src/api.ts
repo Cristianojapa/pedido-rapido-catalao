@@ -16,7 +16,8 @@ import type {
   Store,
 } from './types';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const PRODUCTION_API_URL = 'https://api.xn--centerpeasatacado-hsb.com.br';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || PRODUCTION_API_URL).replace(/\/+$/, '');
 
 export const EMPLOYEE_ACCESS_TOKEN_KEY = 'employeeAccessToken';
 export const EMPLOYEE_REFRESH_TOKEN_KEY = 'employeeRefreshToken';
