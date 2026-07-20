@@ -1580,3 +1580,125 @@ body {
         font-size: 0.75rem;
     }
 }
+
+
+/* Preserva exatamente a apresentação pública de produção quando o workspace interno é carregado. */
+html body {
+    background: fixed radial-gradient(at 0% 0%, rgba(224, 234, 252, 1) 0%, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(207, 222, 243, 1) 0%, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(235, 244, 255, 1) 0%, transparent 50%),
+        #f1f5f9;
+    color: var(--text);
+}
+
+body .header {
+    min-height: 82px;
+}
+
+body .header .logo {
+    height: 62px;
+}
+
+body .header h1 {
+    font-size: 1.5rem;
+}
+
+body .container {
+    max-width: 1440px;
+    padding: 2rem 1.5rem;
+}
+
+body .page-title h2 {
+    font-size: 1.75rem;
+}
+
+body .search-box {
+    margin-bottom: 1.75rem;
+}
+
+body .search-box input {
+    padding: 1.25rem 1.25rem 1.25rem 3.75rem;
+    border-radius: 9999px;
+    font-size: 1rem;
+}
+
+body .filters-section {
+    display: block;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 20px;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.45);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+body .filter-group {
+    display: block;
+    margin-bottom: 1.25rem;
+}
+
+body .filter-group:last-child {
+    margin-bottom: 0;
+}
+
+body .filter-label {
+    color: var(--text);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+body .filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+body .chip {
+    min-height: 0;
+    border: 0;
+    border-radius: 9999px;
+    padding: 0.7rem 1.25rem;
+    background: linear-gradient(145deg, #ffffff, #f1f5f9);
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02), inset 0 1px 1px rgba(255, 255, 255, 1);
+}
+
+body .chip:hover {
+    background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+    color: #0f172a;
+}
+
+body .chip.active {
+    border: 0;
+    background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);
+    color: white;
+}
+
+@media (max-width: 768px) {
+    body .header {
+        min-height: auto;
+    }
+
+    body .header .logo {
+        height: 50px;
+    }
+
+    body .header h1 {
+        font-size: 1rem;
+    }
+
+    body .container {
+        padding: 0.75rem;
+    }
+
+    body .filters-section {
+        padding: 0.875rem;
+    }
+
+    body .chip {
+        padding: 0.375rem 0.625rem;
+        font-size: 0.7rem;
+    }
+}

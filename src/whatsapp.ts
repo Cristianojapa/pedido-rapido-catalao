@@ -71,7 +71,7 @@ export async function openWhatsApp(items: CartItem[], storeName: string, storeId
         };
         console.log('Enviando pedido para API:', JSON.stringify(orderData));
         const response = await api.createOrder(orderData);
-        orderId = response.order_id;
+        orderId = Number(response.order_id);
         console.log('Pedido criado com sucesso! ID:', orderId);
     } catch (error) {
         console.error('Erro ao enviar pedido para o sistema:', error);

@@ -1,25 +1,32 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent } from 'react';
 import './index.css';
-import { api } from './api';
-import type { Store, Product, Filters, CartItem } from './types';
+import './employee-workspace.css';
+import { api, EMPLOYEE_UNAUTHORIZED_EVENT } from './api';
+import type { Store, Product, Filters, CartItem, EmployeeSession } from './types';
 import { formatCurrency, openWhatsApp } from './whatsapp';
 import type { CustomerPortalUser } from './customerAuth';
 import { getSavedUser, clearAuth } from './customerAuth';
 import CustomerLogin from './CustomerLogin';
 import CustomerStatement from './CustomerStatement';
+import AccessibleDialog from './AccessibleDialog';
+import EmployeeWorkspace from './EmployeeWorkspace';
 
 type Page = 'catalog' | 'login' | 'statement';
 
 // Header Component
-function Header({ storeName, user, onLoginClick, onStatementClick, onLogout, onLogoClick }: {
+function Header({ storeName, user, onLoginClick, onStatementClick, onLogout, onLogoClick, onEmployeeAuthenticated }: {
   storeName?: string;
   user: CustomerPortalUser | null;
   onLoginClick: () => void;
   onStatementClick: () => void;
   onLogout: () => void;
   onLogoClick: () => void;
+  onEmployeeAuthenticated: (session: EmployeeSession) => void;
 }) {
+  const [employeeLoginOpen, setEmployeeLoginOpen] = useState(false);
+
   return (
+    <>
     <header className="header">
       <div className="header-brand" onClick={onLogoClick} style={{ cursor: 'pointer' }}>
         <img src="/icons/Logo Center Cell.jpeg" alt="Center Peças" className="logo" />
@@ -70,12 +77,68 @@ function Header({ storeName, user, onLoginClick, onStatementClick, onLogout, onL
               <span>Entrar</span>
             </button>
           )}
+          <button className="btn-header-action btn-employee-header" onClick={() => setEmployeeLoginOpen(true)}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21a8 8 0 0 0-16 0"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span className="hide-mobile">Área do funcionário</span>
+          </button>
         </div>
       </div>
     </header>
+    <EmployeeLoginDialog open={employeeLoginOpen} onClose={() => setEmployeeLoginOpen(false)} onAuthenticated={(session) => { setEmployeeLoginOpen(false); onEmployeeAuthenticated(session); }} />
+    </>
   );
 }
 
+function EmployeeLoginDialog({ open, onClose, onAuthenticated }: {
+  open: boolean;
+  onClose: () => void;
+  onAuthenticated: (session: EmployeeSession) => void;
+}) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setPassword('');
+      setLoginError(null);
+    }
+  }, [open]);
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setLoginError(null);
+    setSubmitting(true);
+    try {
+      onAuthenticated(await api.loginEmployee(email.trim(), password));
+    } catch (requestError) {
+      setLoginError((requestError as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <AccessibleDialog open={open} busy={submitting} onClose={onClose} labelledBy="employee-login-title" describedBy="employee-login-description">
+      <button className="dialog-close" type="button" onClick={onClose} disabled={submitting} aria-label="Fechar">×</button>
+      <span className="brand-mark large">CP</span>
+      <span className="eyebrow">Acesso interno</span>
+      <h1 id="employee-login-title">Área do funcionário</h1>
+      <p id="employee-login-description">Use o mesmo e-mail e senha do sistema principal.</p>
+      <form onSubmit={handleSubmit}>
+        <label className="field"><span>E-mail</span><input data-dialog-initial-focus type="email" autoComplete="username" required disabled={submitting} value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+        <label className="field"><span>Senha</span><input type="password" autoComplete="current-password" required disabled={submitting} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+        {loginError && <div className="inline-alert error" role="alert">{loginError}</div>}
+        <button className="button primary wide" type="submit" disabled={submitting}>{submitting ? 'Validando acesso...' : 'Entrar no Pedido Rápido'}</button>
+      </form>
+      <p className="login-scope-note">Acesso exclusivo para funcionários autorizados.</p>
+    </AccessibleDialog>
+  );
+}
 // Store Selection Page
 function StoreSelectPage({ stores, onSelect, loading }: {
   stores: Store[];
@@ -335,13 +398,7 @@ function CartSummary({
   const items = Array.from(cart.values());
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalValue = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-
-  // Update name when user logs in/out
-  useEffect(() => {
-    if (loggedInUser) {
-      setCustomerName(loggedInUser.name);
-    }
-  }, [loggedInUser]);
+  const effectiveCustomerName = loggedInUser?.name || customerName;
 
   if (totalItems === 0) return null;
 
@@ -355,7 +412,7 @@ function CartSummary({
   const handleSendWhatsApp = async () => {
     if (sending) return;
 
-    const trimmedName = customerName.trim();
+    const trimmedName = effectiveCustomerName.trim();
     if (!trimmedName) {
       setShowError(true);
       setIsExpanded(true); // Abre a gaveta se estiver no mobile
@@ -412,7 +469,7 @@ function CartSummary({
             ref={nameInputRef}
             type="text"
             placeholder="Seu nome *"
-            value={customerName}
+            value={effectiveCustomerName}
             onChange={handleNameChange}
             className={`customer-name-input ${showError ? 'input-error' : ''}`}
             disabled={sending || !!loggedInUser}
@@ -448,6 +505,7 @@ function CatalogPage({ store, user }: { store: Store; user: CustomerPortalUser |
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<Map<string, CartItem>>(new Map());
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [activeFilters, setActiveFilters] = useState<{
     group: number | null;
@@ -501,7 +559,7 @@ function CatalogPage({ store, user }: { store: Store; user: CustomerPortalUser |
         brand: activeFilters.brand || undefined,
         category: activeFilters.category || undefined,
         color: activeFilters.color || undefined,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
       });
       setProducts(sortCatalogProducts(data.products));
     } catch (error) {
@@ -509,23 +567,17 @@ function CatalogPage({ store, user }: { store: Store; user: CustomerPortalUser |
     } finally {
       setLoading(false);
     }
-  }, [store.id, activeFilters, search]);
+  }, [store.id, activeFilters, debouncedSearch]);
 
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
 
   // Debounce search
-  const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
-
-  useEffect(() => {
-    if (debouncedSearch !== search) return;
-    loadProducts();
-  }, [debouncedSearch]);
 
   const handleQuantityChange = (product: Product, delta: number) => {
     setCart((prev) => {
@@ -648,16 +700,28 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<Page>('catalog');
   const [portalUser, setPortalUser] = useState<CustomerPortalUser | null>(() => getSavedUser());
+  const [employeeSession, setEmployeeSession] = useState<EmployeeSession | null>(null);
+
+  useEffect(() => {
+    api.restoreEmployeeSession().then(setEmployeeSession).catch(console.error);
+    const handleUnauthorized = () => setEmployeeSession(null);
+    window.addEventListener(EMPLOYEE_UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(EMPLOYEE_UNAUTHORIZED_EVENT, handleUnauthorized);
+  }, []);
 
   useEffect(() => {
     api.getStores()
       .then((data) => {
-        setStores(data);
         setError(null);
         // Selecionar automaticamente a loja CENTER PEÇAS - CATALÃO (ID 1)
         const defaultStore = data.find(s => s.id === 1);
         if (defaultStore) {
+          setStores([defaultStore]);
           setSelectedStore(defaultStore);
+        } else {
+          setStores([]);
+          setSelectedStore(null);
+          setError('A loja Center Peças - Catalão não está disponível.');
         }
       })
       .catch((err) => {
@@ -684,6 +748,15 @@ function App() {
     setCurrentPage('catalog');
   };
 
+  const handleEmployeeLogout = async () => {
+    await api.logoutEmployee();
+    setEmployeeSession(null);
+  };
+
+  if (employeeSession) {
+    return <EmployeeWorkspace user={employeeSession.user} onLogout={handleEmployeeLogout} />;
+  }
+
   // Login Page
   if (currentPage === 'login') {
     return (
@@ -695,9 +768,11 @@ function App() {
           onStatementClick={() => setCurrentPage('statement')}
           onLogout={handleLogout}
           onLogoClick={handleLogoClick}
+          onEmployeeAuthenticated={setEmployeeSession}
         />
         <CustomerLogin
           onLoginSuccess={handleLoginSuccess}
+          onEmployeeLoginSuccess={setEmployeeSession}
           onBack={() => setCurrentPage('catalog')}
         />
       </>
@@ -715,6 +790,7 @@ function App() {
           onStatementClick={() => setCurrentPage('statement')}
           onLogout={handleLogout}
           onLogoClick={handleLogoClick}
+          onEmployeeAuthenticated={setEmployeeSession}
         />
         <CustomerStatement onBack={() => setCurrentPage('catalog')} />
       </>
@@ -732,6 +808,7 @@ function App() {
           onStatementClick={() => setCurrentPage('statement')}
           onLogout={handleLogout}
           onLogoClick={handleLogoClick}
+          onEmployeeAuthenticated={setEmployeeSession}
         />
         <CatalogPage store={selectedStore} user={portalUser} />
       </>
@@ -747,6 +824,7 @@ function App() {
           onStatementClick={() => setCurrentPage('statement')}
           onLogout={handleLogout}
           onLogoClick={handleLogoClick}
+          onEmployeeAuthenticated={setEmployeeSession}
         />
         <div className="store-select-page">
           <div className="empty-state">
@@ -768,6 +846,7 @@ function App() {
         onStatementClick={() => setCurrentPage('statement')}
         onLogout={handleLogout}
         onLogoClick={handleLogoClick}
+        onEmployeeAuthenticated={setEmployeeSession}
       />
       <StoreSelectPage stores={stores} onSelect={setSelectedStore} loading={loading} />
     </>

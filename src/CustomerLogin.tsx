@@ -1,13 +1,16 @@
 import { useState, useRef } from 'react';
 import type { CustomerPortalUser } from './customerAuth';
 import { customerApi } from './customerAuth';
+import { api } from './api';
+import type { EmployeeSession } from './types';
 
 interface CustomerLoginProps {
     onLoginSuccess: (user: CustomerPortalUser) => void;
+    onEmployeeLoginSuccess: (session: EmployeeSession) => void;
     onBack: () => void;
 }
 
-export default function CustomerLogin({ onLoginSuccess, onBack }: CustomerLoginProps) {
+export default function CustomerLogin({ onLoginSuccess, onEmployeeLoginSuccess, onBack }: CustomerLoginProps) {
     const [mode, setMode] = useState<'login' | 'register'>('login');
     const [identifier, setIdentifier] = useState('');
     const [name, setName] = useState('');
@@ -50,7 +53,19 @@ export default function CustomerLogin({ onLoginSuccess, onBack }: CustomerLoginP
         setLoading(true);
         try {
             if (mode === 'login') {
-                const result = await customerApi.login(identifier.trim(), password);
+                const normalizedIdentifier = identifier.trim();
+                if (identifierType === 'email') {
+                    try {
+                        const employeeSession = await api.loginEmployee(normalizedIdentifier, password);
+                        onEmployeeLoginSuccess(employeeSession);
+                        return;
+                    } catch (employeeError) {
+                        const message = employeeError instanceof Error ? employeeError.message : '';
+                        if (message.includes('não tem acesso')) throw employeeError;
+                    }
+                }
+
+                const result = await customerApi.login(normalizedIdentifier, password);
                 onLoginSuccess(result.user);
             } else {
                 const data: { phone?: string; email?: string; name: string; password: string } = {
@@ -93,7 +108,7 @@ export default function CustomerLogin({ onLoginSuccess, onBack }: CustomerLoginP
                         <h2>{mode === 'login' ? 'Entrar' : 'Criar Conta'}</h2>
                         <p className="login-subtitle">
                             {mode === 'login'
-                                ? 'Entre com seu telefone ou email'
+                                ? 'Cliente: telefone. Funcionário: e-mail do sistema principal'
                                 : 'Crie sua conta para acessar o extrato'}
                         </p>
                     </div>
@@ -144,7 +159,7 @@ export default function CustomerLogin({ onLoginSuccess, onBack }: CustomerLoginP
                                 }
                             }}
                             disabled={loading}
-                            autoComplete="current-password"
+                            autoComplete={identifierType === 'email' ? 'username' : 'tel'}
                         />
                     </div>
 
