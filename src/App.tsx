@@ -300,10 +300,10 @@ function QuantityInput({
   onChange: (delta: number) => void;
 }) {
   return (
-    <div className="quantity-input">
-      <button onClick={() => onChange(-1)}>−</button>
+    <div className="public-quantity-input" aria-label={`Quantidade atual: ${quantity}`}>
+      <button type="button" onClick={() => onChange(-1)} aria-label="Diminuir quantidade">−</button>
       <span>{quantity}</span>
-      <button onClick={() => onChange(1)}>+</button>
+      <button type="button" onClick={() => onChange(1)} aria-label="Aumentar quantidade">+</button>
     </div>
   );
 }
