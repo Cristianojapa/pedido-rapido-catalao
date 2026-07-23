@@ -608,11 +608,15 @@ export const api = {
     );
   },
 
-  async getMyOperationalRequests(): Promise<OperationalRequest[]> {
+  async getOperationalRequests(storeId: number | string): Promise<OperationalRequest[]> {
+    const params = new URLSearchParams({
+      store: String(storeId),
+      page_size: '100',
+    });
     let data = await employeeRequest<unknown>(
-      '/api/operational-requests/?submitted_by=me&page_size=100',
+      `/api/operational-requests/?${params}`,
       {},
-      'Não foi possível carregar suas solicitações.',
+      'Não foi possível carregar as solicitações da loja.',
     );
     const rows = unwrapList<Record<string, unknown>>(data);
     const visitedPages = new Set<string>();
@@ -628,7 +632,7 @@ export const api = {
       data = await employeeRequest<unknown>(
         `${parsed.pathname}${parsed.search}`,
         {},
-        'Não foi possível carregar todas as suas solicitações.',
+        'Não foi possível carregar todas as solicitações da loja.',
       );
       rows.push(...unwrapList<Record<string, unknown>>(data));
     }

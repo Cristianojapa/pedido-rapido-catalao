@@ -557,7 +557,35 @@ a { color: inherit; }
 .grow-field { flex: 1; }
 .form-footer-action { min-width: 280px; display: grid; gap: 8px; justify-items: end; }
 
+.request-filter-bar {
+  margin: -14px 0 18px;
+  border-block: 1px solid var(--line-strong);
+  padding: 14px 0;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+.request-seller-filter { min-width: 300px; display: grid; gap: 6px; }
+.request-seller-filter > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.request-seller-filter select {
+  height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 34px 0 11px;
+  background: white;
+  color: var(--ink);
+}
+.request-seller-filter select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(36, 99, 235, 0.1); outline: 0; }
+.request-filter-count { padding-bottom: 11px; color: var(--muted); font-size: 11px; }
 .request-list-table { min-height: 180px; }
+.request-seller-cell { min-width: 170px; font-weight: 650; }
 .request-detail-cell { max-width: 360px; color: var(--muted); font-size: 11px; line-height: 1.45; white-space: normal; }
 .type-marker, .status-badge { display: inline-flex; align-items: center; min-height: 25px; border-radius: 999px; padding: 4px 9px; font-size: 10px; font-weight: 800; white-space: nowrap; }
 .type-marker { color: var(--blue-dark); background: var(--blue-soft); }
@@ -654,6 +682,9 @@ a { color: inherit; }
   .employee-main { width: min(100% - 28px, 1540px); padding-top: 28px; }
   .workspace-intro { min-height: 0; align-items: start; flex-direction: column; gap: 18px; }
   .workspace-intro h1 { font-size: 27px; }
+  .request-filter-bar { margin-top: 0; align-items: stretch; flex-direction: column; gap: 10px; }
+  .request-seller-filter { width: 100%; min-width: 0; }
+  .request-filter-count { padding-bottom: 0; }
   .workspace-context { border-left: 0; border-top: 1px solid var(--line); padding: 10px 0 0; }
   .section-heading { align-items: start; flex-direction: column; gap: 8px; }
   .request-inspector { padding: 16px; }

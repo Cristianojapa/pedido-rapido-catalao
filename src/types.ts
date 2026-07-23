@@ -139,6 +139,8 @@ export type PaymentMethod =
 
 export type OperationalRequestType = 'SALE' | 'WARRANTY_EXCHANGE' | 'RETURN';
 
+export type DeliveryMethod = 'CUSTOMER_PICKUP' | 'MOTOBOY';
+
 export interface OperationalRequestItemInput {
   product_id: string;
   quantity: number;
@@ -152,6 +154,7 @@ export interface OperationalRequestInput {
   store: number;
   customer: number | string;
   items: OperationalRequestItemInput[];
+  delivery_method?: DeliveryMethod;
   payment_method?: PaymentMethod;
   number_of_installments?: number;
   bank?: number | string | null;
@@ -183,7 +186,11 @@ export interface OperationalRequest {
   store_name?: string;
   customer?: number | string | Customer;
   customer_name?: string;
+  submitted_by?: number | string | null;
   submitted_by_name?: string;
+  seller?: number | string | null;
+  seller_name?: string;
+  delivery_method?: DeliveryMethod;
   items?: OperationalRequestItem[];
   total_value?: number | string | null;
   status_reason?: string;

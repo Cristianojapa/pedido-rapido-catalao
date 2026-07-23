@@ -5,6 +5,7 @@ import type {
   Bank,
   CartItem,
   Customer,
+  DeliveryMethod,
   EligiblePurchaseItem,
   EmployeeUser,
   OperationalRequest,
@@ -28,6 +29,11 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'DEBIT_CARD', label: 'Cartão de débito' },
   { value: 'CREDIT_CARD', label: 'Cartão de crédito' },
   { value: 'PENDING', label: 'Pendente' },
+];
+
+const DELIVERY_METHODS: { value: DeliveryMethod; label: string }[] = [
+  { value: 'CUSTOMER_PICKUP', label: 'Cliente retira na loja' },
+  { value: 'MOTOBOY', label: 'Entregar por motoboy' },
 ];
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
@@ -65,6 +71,15 @@ function requestTypeLabel(request: OperationalRequest): string {
 
 function requestStatusLabel(request: OperationalRequest): string {
   return request.status_display || STATUS_LABELS[request.status] || request.status;
+}
+
+function requestCreatorId(request: OperationalRequest): string {
+  const value = request.submitted_by ?? request.seller;
+  return value === null || value === undefined ? '' : String(value);
+}
+
+function requestCreatorName(request: OperationalRequest): string {
+  return request.submitted_by_name || request.seller_name || 'Vendedor não identificado';
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -274,7 +289,8 @@ function SaleTab({
 }) {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [cart, setCart] = useState<Map<string, CartItem>>(new Map());
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>('');
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('CUSTOMER_PICKUP');
   const [installments, setInstallments] = useState(1);
   const [bankId, setBankId] = useState('');
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -310,7 +326,8 @@ function SaleTab({
   useEffect(() => {
     setCustomer(null);
     setCart(new Map());
-    setPaymentMethod('PIX');
+    setPaymentMethod('');
+    setDeliveryMethod('CUSTOMER_PICKUP');
     setInstallments(1);
     setBankId('');
     setNotes('');
@@ -326,7 +343,7 @@ function SaleTab({
   const items = Array.from(cart.values());
   const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-  const needsBank = paymentMethod !== 'PENDING';
+  const needsBank = paymentMethod !== '' && paymentMethod !== 'PENDING';
   const dirty = Boolean(customer || cart.size || notes.trim());
 
   useEffect(() => {
@@ -360,6 +377,10 @@ function SaleTab({
       setFeedback({ kind: 'error', message: 'Adicione pelo menos uma peça.' });
       return;
     }
+    if (!paymentMethod) {
+      setFeedback({ kind: 'error', message: 'Selecione a forma de pagamento desta venda.' });
+      return;
+    }
     if (needsBank && !bankId) {
       setFeedback({ kind: 'error', message: 'Selecione o banco usado no pagamento.' });
       return;
@@ -374,6 +395,7 @@ function SaleTab({
         store: store.id,
         customer: customer.id,
         items: items.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
+        delivery_method: deliveryMethod,
         payment_method: paymentMethod,
         number_of_installments: installments,
         bank: needsBank ? bankId : null,
@@ -381,6 +403,10 @@ function SaleTab({
       }, clientRequestId);
       setCart(new Map());
       setCustomer(null);
+      setPaymentMethod('');
+      setDeliveryMethod('CUSTOMER_PICKUP');
+      setInstallments(1);
+      setBankId('');
       setNotes('');
       clientRequestIdRef.current = null;
       setFeedback({ kind: 'success', message: `Venda #${created.id} enviada para a retaguarda.` });
@@ -465,9 +491,10 @@ function SaleTab({
                 disabled={submitting}
                 onChange={(event) => {
                   invalidateRequestId();
-                  setPaymentMethod(event.target.value as PaymentMethod);
+                  setPaymentMethod(event.target.value as PaymentMethod | '');
                 }}
               >
+                <option value="">Selecione a forma de pagamento</option>
                 {PAYMENT_METHODS.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}
               </select>
             </label>
@@ -512,6 +539,21 @@ function SaleTab({
                 </button>
               </div>
             )}
+            <label className="field">
+              <span>Entrega</span>
+              <select
+                value={deliveryMethod}
+                disabled={submitting}
+                onChange={(event) => {
+                  invalidateRequestId();
+                  setDeliveryMethod(event.target.value as DeliveryMethod);
+                }}
+              >
+                {DELIVERY_METHODS.map((method) => (
+                  <option key={method.value} value={method.value}>{method.label}</option>
+                ))}
+              </select>
+            </label>
             <label className="field">
               <span>Observações <small>opcional</small></span>
               <textarea
@@ -800,13 +842,24 @@ function WarrantyTab({
   );
 }
 
-function RequestsTab({ refreshKey, active }: { refreshKey: number; active: boolean }) {
+function RequestsTab({
+  refreshKey,
+  active,
+  store,
+  user,
+}: {
+  refreshKey: number;
+  active: boolean;
+  store: Store;
+  user: EmployeeUser;
+}) {
   const [requests, setRequests] = useState<OperationalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [actionId, setActionId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [sellerFilter, setSellerFilter] = useState('ALL');
   const loadSequence = useRef(0);
 
   const loadRequests = useCallback(async (silent = false) => {
@@ -816,7 +869,7 @@ function RequestsTab({ refreshKey, active }: { refreshKey: number; active: boole
       setError(null);
     }
     try {
-      const data = await api.getMyOperationalRequests();
+      const data = await api.getOperationalRequests(store.id);
       if (sequence !== loadSequence.current) return;
       setRequests(data);
       setError(null);
@@ -826,7 +879,11 @@ function RequestsTab({ refreshKey, active }: { refreshKey: number; active: boole
     } finally {
       if (sequence === loadSequence.current) setLoading(false);
     }
-  }, []);
+  }, [store.id]);
+
+  useEffect(() => {
+    setSellerFilter('ALL');
+  }, [store.id]);
 
   useEffect(() => {
     if (!active) {
@@ -840,6 +897,28 @@ function RequestsTab({ refreshKey, active }: { refreshKey: number; active: boole
       window.clearInterval(interval);
     };
   }, [active, loadRequests, refreshKey, reloadKey]);
+
+  const sellerOptions = useMemo(() => {
+    const sellers = new Map<string, string>();
+    requests.forEach((request) => {
+      const id = requestCreatorId(request);
+      if (id) sellers.set(id, requestCreatorName(request));
+    });
+    return Array.from(sellers, ([id, name]) => ({ id, name }))
+      .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'));
+  }, [requests]);
+
+  const isMyRequest = useCallback(
+    (request: OperationalRequest) => requestCreatorId(request) === String(user.id),
+    [user.id],
+  );
+
+  const visibleRequests = useMemo(() => {
+    if (sellerFilter === 'ALL') return requests;
+    if (sellerFilter === 'ME') return requests.filter(isMyRequest);
+    const sellerId = sellerFilter.replace(/^SELLER:/, '');
+    return requests.filter((request) => requestCreatorId(request) === sellerId);
+  }, [isMyRequest, requests, sellerFilter]);
 
   const confirmDelivery = async (request: OperationalRequest) => {
     const requestId = String(request.id);
@@ -872,11 +951,11 @@ function RequestsTab({ refreshKey, active }: { refreshKey: number; active: boole
       aria-labelledby="tab-requests"
       hidden={!active}
     >
-      <div className="workspace-intro">
+      <div className="workspace-intro requests-intro">
         <div>
           <span className="eyebrow">Acompanhamento</span>
-          <h1>Minhas solicitações</h1>
-          <p>Acompanhe o andamento do que você enviou para a retaguarda.</p>
+          <h1>Solicitações</h1>
+          <p>Acompanhe o que todos os vendedores da loja enviaram para a retaguarda.</p>
         </div>
         <button className="button secondary" type="button" disabled={loading} onClick={() => {
           setFeedback(null);
@@ -887,22 +966,47 @@ function RequestsTab({ refreshKey, active }: { refreshKey: number; active: boole
         </button>
       </div>
 
+      <div className="request-filter-bar">
+        <label className="request-seller-filter">
+          <span>Vendedor que criou</span>
+          <select
+            value={sellerFilter}
+            disabled={loading}
+            onChange={(event) => setSellerFilter(event.target.value)}
+          >
+            <option value="ALL">Todos os vendedores</option>
+            <option value="ME">Meu login — {employeeName(user)}</option>
+            {sellerOptions
+              .filter((seller) => seller.id !== String(user.id))
+              .map((seller) => (
+                <option key={seller.id} value={`SELLER:${seller.id}`}>{seller.name}</option>
+              ))}
+          </select>
+        </label>
+        <span className="request-filter-count">
+          {visibleRequests.length} de {requests.length} solicitação(ões)
+        </span>
+      </div>
+
       {feedback && <div className="inline-alert success" role="status">{feedback}</div>}
       {error && <div className="inline-alert error" role="alert">{error}</div>}
       {loading ? (
         <div className="loading-row" aria-live="polite">Carregando solicitações...</div>
       ) : !requests.length ? (
-        error ? null : <div className="empty-state">Você ainda não enviou solicitações.</div>
+        error ? null : <div className="empty-state">Nenhuma solicitação foi enviada para esta loja.</div>
+      ) : !visibleRequests.length ? (
+        <div className="empty-state">Nenhuma solicitação encontrada para este vendedor.</div>
       ) : (
         <div className="table-scroll request-list-table">
           <table className="data-table">
-            <thead><tr><th>ID</th><th>Tipo</th><th>Cliente</th><th>Loja</th><th>Enviado em</th><th>Status</th><th>Detalhes</th><th>Ação</th></tr></thead>
+            <thead><tr><th>ID</th><th>Tipo</th><th>Cliente</th><th>Criado por</th><th>Loja</th><th>Enviado em</th><th>Status</th><th>Detalhes</th><th>Ação</th></tr></thead>
             <tbody>
-              {requests.map((request) => (
+              {visibleRequests.map((request) => (
                 <tr key={request.id}>
                   <td data-label="ID"><strong>#{request.id}</strong></td>
                   <td data-label="Tipo"><span className={`type-marker type-${request.type.toLowerCase()}`}>{requestTypeLabel(request)}</span></td>
                   <td data-label="Cliente">{request.customer_name || '—'}</td>
+                  <td data-label="Criado por" className="request-seller-cell">{requestCreatorName(request)}</td>
                   <td data-label="Loja">{request.store_name || '—'}</td>
                   <td data-label="Enviado em">{formatDate(request.created_at)}</td>
                   <td data-label="Status"><span className={`status-badge status-${request.status.toLowerCase()}`}>{requestStatusLabel(request)}</span></td>
@@ -910,7 +1014,7 @@ function RequestsTab({ refreshKey, active }: { refreshKey: number; active: boole
                     {request.status_reason || `${request.items?.length || 0} item(ns) · ${formatCurrency(Number(request.total_value || 0))}`}
                   </td>
                   <td data-label="Ação">
-                    {request.status === 'READY_FOR_DELIVERY' ? (
+                    {request.status === 'READY_FOR_DELIVERY' && isMyRequest(request) ? (
                       <button
                         type="button"
                         className="button primary compact-action"
@@ -923,7 +1027,9 @@ function RequestsTab({ refreshKey, active }: { refreshKey: number; active: boole
                             ? 'Entreguei e recebi a defeituosa'
                             : 'Marcar como entregue'}
                       </button>
-                    ) : request.status === 'AWAITING_DEFECTIVE' ? (
+                    ) : request.status === 'READY_FOR_DELIVERY' ? (
+                      <span className="table-muted">Aguardando {requestCreatorName(request)}</span>
+                    ) : request.status === 'AWAITING_DEFECTIVE' && isMyRequest(request) ? (
                       <span className="table-muted">Levar defeituosa ao estoque</span>
                     ) : (
                       <span className="table-muted">—</span>
@@ -1222,7 +1328,7 @@ export default function EmployeeWorkspace({ user, onLogout }: { user: EmployeeUs
         {([
           ['sale', 'Venda'],
           ['warranty', 'Garantia / Troca'],
-          ['requests', 'Minhas solicitações'],
+          ['requests', 'Solicitações'],
           ['return', 'Devolução'],
         ] as [WorkspaceTab, string][]).map(([tab, label]) => (
           <button
@@ -1242,7 +1348,7 @@ export default function EmployeeWorkspace({ user, onLogout }: { user: EmployeeUs
       </nav>
 
       <main className="employee-main">
-        {!selectedStore && activeTab !== 'requests' && (
+        {!selectedStore && (
           <div className="empty-state prominent">
             <strong>Nenhuma loja vinculada</strong>
             <span>Peça a um administrador para vincular uma loja ao seu usuário.</span>
@@ -1270,7 +1376,14 @@ export default function EmployeeWorkspace({ user, onLogout }: { user: EmployeeUs
             />
           </>
         )}
-        <RequestsTab refreshKey={refreshKey} active={activeTab === 'requests'} />
+        {selectedStore && (
+          <RequestsTab
+            refreshKey={refreshKey}
+            active={activeTab === 'requests'}
+            store={selectedStore}
+            user={user}
+          />
+        )}
       </main>
     </div>
   );
