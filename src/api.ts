@@ -6,6 +6,7 @@ import type {
   CustomerSession,
   CustomerStatement,
   Customer,
+  EligibleCancellationOrder,
   EligiblePurchaseItem,
   EmployeeSession,
   EmployeeUser,
@@ -314,6 +315,11 @@ function normalizeEligiblePurchases(data: unknown): EligiblePurchaseItem[] {
         ?? item.order_item
         ?? item.id
       ) as number | string;
+      const sourceWarrantyId = (
+        item.source_warranty_id
+        ?? item.source_warranty
+        ?? null
+      ) as number | string | null;
       const productValue = item.product;
       const product = productValue && typeof productValue === 'object'
         ? productValue as Record<string, unknown>
@@ -322,8 +328,18 @@ function normalizeEligiblePurchases(data: unknown): EligiblePurchaseItem[] {
       if (!productId || sourceItemId === undefined || orderId === undefined) return;
 
       normalized.push({
+        eligibility_id: String(
+          item.eligibility_id
+          ?? (sourceWarrantyId !== null
+            ? `warranty:${sourceWarrantyId}`
+            : `purchase:${sourceItemId}`),
+        ),
         source_order_id: (item.order_id ?? item.source_order_id ?? item.order ?? orderId) as number | string,
         source_order_item_id: sourceItemId,
+        source_warranty_id: sourceWarrantyId,
+        source_kind: sourceWarrantyId !== null
+          ? 'WARRANTY_REPLACEMENT'
+          : 'PURCHASE',
         order_label: String(item.order_number ?? item.order_label ?? orderLabel),
         order_date: (item.order_date ?? item.sale_date ?? item.created_at ?? orderDate) as string | null,
         product_id: productId,
@@ -334,6 +350,13 @@ function normalizeEligiblePurchases(data: unknown): EligiblePurchaseItem[] {
         purchased_quantity: Number(item.purchased_quantity ?? item.quantity ?? 1),
         eligible_quantity: Number(
           item.eligible_quantity ?? item.available_quantity ?? item.quantity_available ?? item.quantity ?? 1,
+        ),
+        warranty_generation: Number(item.warranty_generation ?? 0),
+        next_warranty_generation: Number(
+          item.next_warranty_generation
+          ?? (sourceWarrantyId !== null
+            ? Number(item.warranty_generation ?? 1) + 1
+            : 1),
         ),
       });
     });
@@ -583,6 +606,16 @@ export const api = {
       'Não foi possível carregar as compras elegíveis.',
     );
     return normalizeEligiblePurchases(data);
+  },
+
+  async getEligibleCancellations(customerId: number | string, storeId: number): Promise<EligibleCancellationOrder[]> {
+    const params = new URLSearchParams({ customer: String(customerId), store: String(storeId) });
+    const data = await employeeRequest<unknown>(
+      `/api/operational-requests/eligible-cancellations/?${params}`,
+      {},
+      'Não foi possível carregar as vendas disponíveis para cancelamento.',
+    );
+    return unwrapList<EligibleCancellationOrder>(data);
   },
 
   async createOperationalRequest(

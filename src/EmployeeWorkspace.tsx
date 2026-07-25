@@ -6,6 +6,7 @@ import type {
   CartItem,
   Customer,
   DeliveryMethod,
+  EligibleCancellationOrder,
   EligiblePurchaseItem,
   EmployeeUser,
   OperationalRequest,
@@ -16,7 +17,7 @@ import type {
 } from './types';
 import { formatCurrency } from './whatsapp';
 
-type WorkspaceTab = 'sale' | 'warranty' | 'requests' | 'return';
+type WorkspaceTab = 'sale' | 'warranty' | 'requests' | 'return' | 'cancellation';
 
 interface DraftState {
   dirty: boolean;
@@ -40,6 +41,7 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
   SALE: 'Venda',
   WARRANTY_EXCHANGE: 'Garantia / Troca',
   RETURN: 'Devolução',
+  CANCELLATION: 'Cancelamento',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -64,6 +66,7 @@ const REQUEST_TYPE_FILTER_OPTIONS = [
   { value: 'SALE', label: 'Venda' },
   { value: 'WARRANTY_EXCHANGE', label: 'Garantia / Troca' },
   { value: 'RETURN', label: 'Devolução' },
+  { value: 'CANCELLATION', label: 'Cancelamento' },
 ];
 
 const REQUEST_STATUS_FILTER_OPTIONS = [
@@ -90,6 +93,17 @@ function requestTypeLabel(request: OperationalRequest): string {
 
 function requestStatusLabel(request: OperationalRequest): string {
   return request.status_display || STATUS_LABELS[request.status] || request.status;
+}
+
+function requestStatusReason(value?: string | null): string {
+  const raw = value?.trim();
+  if (!raw) return '';
+  const extracted = Array.from(
+    raw.matchAll(/ErrorDetail\(string=(['"])(.*?)\1,\s*code=(['"])(.*?)\3\)/g),
+    (match) => match[2],
+  );
+  if (extracted.length) return [...new Set(extracted)].join(' ');
+  return raw;
 }
 
 function requestCreatorId(request: OperationalRequest): string {
@@ -614,7 +628,7 @@ function WarrantyQuantity({
 }) {
   const quantity = selection?.quantity || 0;
   return (
-    <div className="quantity-input compact">
+    <div className="quantity-input">
       <button type="button" disabled={disabled} aria-label={`Diminuir quantidade de ${itemLabel}`} onClick={() => onChange(Math.max(0, quantity - 1))}>−</button>
       <span>{quantity}</span>
       <button type="button" disabled={disabled} aria-label={`Aumentar quantidade de ${itemLabel}`} onClick={() => onChange(Math.min(maximum, quantity + 1))}>+</button>
@@ -689,7 +703,7 @@ function WarrantyTab({
     if (submitting) return;
     clientRequestIdRef.current = null;
     setFeedback(null);
-    const key = String(item.source_order_item_id);
+    const key = item.eligibility_id;
     setSelections((current) => {
       const next = new Map(current);
       if (quantity <= 0) next.delete(key);
@@ -730,6 +744,7 @@ function WarrantyTab({
         items: selectedItems.map(({ item, quantity, defect_description }) => ({
           product_id: item.product_id,
           source_order_item: item.source_order_item_id,
+          source_warranty: item.source_warranty_id ?? undefined,
           quantity,
           defect: defect_description.trim(),
         })),
@@ -797,14 +812,24 @@ function WarrantyTab({
         ) : (
           <div className="table-scroll">
             <table className="data-table warranty-table">
-              <thead><tr><th>Venda</th><th>Data</th><th>Peça</th><th>Disponível</th><th>Quantidade</th><th>Defeito</th></tr></thead>
+              <thead><tr><th>Origem</th><th>Data</th><th>Peça</th><th>Disponível</th><th>Quantidade</th><th>Defeito</th></tr></thead>
               <tbody>
                 {purchases.map((item) => {
-                  const key = String(item.source_order_item_id);
+                  const key = item.eligibility_id;
                   const selection = selections.get(key);
                   return (
                     <tr className={selection ? 'selected-row' : ''} key={key}>
-                      <td data-label="Venda"><strong>{item.order_label}</strong></td>
+                      <td data-label="Origem" className="eligible-origin-cell">
+                        <strong>{item.order_label}</strong>
+                        {item.source_kind === 'WARRANTY_REPLACEMENT' && (
+                          <>
+                            <span className="replacement-origin-badge">
+                              {item.next_warranty_generation}ª garantia
+                            </span>
+                            <small>Peça substituta da garantia anterior</small>
+                          </>
+                        )}
+                      </td>
                       <td data-label="Data">{formatDate(item.order_date)}</td>
                       <td data-label="Peça"><strong>{item.description}</strong>{item.color && <small>{item.color}</small>}</td>
                       <td data-label="Disponível">{item.eligible_quantity} de {item.purchased_quantity}</td>
@@ -1103,7 +1128,7 @@ function RequestsTab({
                   <td data-label="Enviado em">{formatDate(request.created_at)}</td>
                   <td data-label="Status"><span className={`status-badge status-${request.status.toLowerCase()}`}>{requestStatusLabel(request)}</span></td>
                   <td data-label="Detalhes" className="request-detail-cell">
-                    {request.status_reason || `${request.items?.length || 0} item(ns) · ${formatCurrency(Number(request.total_value || 0))}`}
+                    {requestStatusReason(request.status_reason) || `${request.items?.length || 0} item(ns) · ${formatCurrency(Number(request.total_value || 0))}`}
                   </td>
                   <td data-label="Ação">
                     {['SEPARATING', 'READY_FOR_DELIVERY'].includes(request.status) && isMyRequest(request) ? (
@@ -1201,7 +1226,7 @@ function ReturnTab({
     if (submitting) return;
     clientRequestIdRef.current = null;
     setFeedback(null);
-    const key = String(item.source_order_item_id);
+    const key = item.eligibility_id;
     setSelections((current) => {
       const next = new Map(current);
       if (quantity <= 0) next.delete(key);
@@ -1233,6 +1258,7 @@ function ReturnTab({
         items: selectedItems.map(({ item, quantity }) => ({
           product_id: item.product_id,
           source_order_item: item.source_order_item_id,
+          source_warranty: item.source_warranty_id ?? undefined,
           quantity,
         })),
         notes: notes.trim() || undefined,
@@ -1302,14 +1328,26 @@ function ReturnTab({
         ) : (
           <div className="table-scroll">
             <table className="data-table warranty-table">
-              <thead><tr><th>Venda</th><th>Data</th><th>Peça</th><th>Disponível</th><th>Quantidade</th></tr></thead>
+              <thead><tr><th>Origem</th><th>Data</th><th>Peça</th><th>Disponível</th><th>Quantidade</th></tr></thead>
               <tbody>
                 {purchases.map((item) => {
-                  const key = String(item.source_order_item_id);
+                  const key = item.eligibility_id;
                   const selection = selections.get(key);
                   return (
                     <tr className={selection ? 'selected-row' : ''} key={key}>
-                      <td data-label="Venda"><strong>{item.order_label}</strong></td>
+                      <td data-label="Origem" className="eligible-origin-cell">
+                        <strong>{item.order_label}</strong>
+                        {item.source_kind === 'WARRANTY_REPLACEMENT' && (
+                          <>
+                            <span className="replacement-origin-badge">
+                              Peça de troca
+                            </span>
+                            <small>
+                              Substituída na garantia #{item.source_warranty_id}
+                            </small>
+                          </>
+                        )}
+                      </td>
                       <td data-label="Data">{formatDate(item.order_date)}</td>
                       <td data-label="Peça"><strong>{item.description}</strong>{item.color && <small>{item.color}</small>}</td>
                       <td data-label="Disponível">{item.eligible_quantity} de {item.purchased_quantity}</td>
@@ -1357,6 +1395,338 @@ function ReturnTab({
   );
 }
 
+function CancellationTab({
+  store,
+  active,
+  onCreated,
+  onDraftStateChange,
+}: {
+  store: Store;
+  active: boolean;
+  onCreated: () => void;
+  onDraftStateChange: (state: DraftState) => void;
+}) {
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [orders, setOrders] = useState<EligibleCancellationOrder[]>([]);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
+  const [createRefund, setCreateRefund] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
+  const clientRequestIdRef = useRef<string | null>(null);
+
+  const selectedOrder = orders.find((order) => String(order.id) === selectedOrderId) || null;
+  const dirty = Boolean(customer || selectedOrderId || createRefund || notes.trim());
+
+  useEffect(() => {
+    onDraftStateChange({ dirty, submitting });
+  }, [dirty, onDraftStateChange, submitting]);
+
+  useEffect(() => {
+    setCustomer(null);
+    setOrders([]);
+    setSelectedOrderId('');
+    setCreateRefund(false);
+    setNotes('');
+    setFeedback(null);
+    clientRequestIdRef.current = null;
+  }, [store.id]);
+
+  useEffect(() => {
+    if (!customer) {
+      setOrders([]);
+      setSelectedOrderId('');
+      setCreateRefund(false);
+      setLoading(false);
+      return;
+    }
+    let requestActive = true;
+    setLoading(true);
+    setFeedback(null);
+    api.getEligibleCancellations(customer.id, store.id)
+      .then((data) => {
+        if (requestActive) setOrders(data);
+      })
+      .catch((requestError: Error) => {
+        if (requestActive) setFeedback({ kind: 'error', message: requestError.message });
+      })
+      .finally(() => {
+        if (requestActive) setLoading(false);
+      });
+    return () => {
+      requestActive = false;
+    };
+  }, [customer, store.id]);
+
+  const selectOrder = (order: EligibleCancellationOrder) => {
+    if (submitting) return;
+    setSelectedOrderId(String(order.id));
+    setCreateRefund(false);
+    setFeedback(null);
+    clientRequestIdRef.current = null;
+  };
+
+  const submit = async () => {
+    setFeedback(null);
+    if (!customer) {
+      setFeedback({ kind: 'error', message: 'Selecione o cliente do cancelamento.' });
+      return;
+    }
+    if (!selectedOrder) {
+      setFeedback({ kind: 'error', message: 'Selecione a venda que será cancelada.' });
+      return;
+    }
+    if (createRefund && !selectedOrder.has_refundable_payment) {
+      setFeedback({ kind: 'error', message: 'Esta venda não possui valor pago para reembolso.' });
+      return;
+    }
+
+    setSubmitting(true);
+    const clientRequestId = clientRequestIdRef.current || createClientRequestId();
+    clientRequestIdRef.current = clientRequestId;
+    try {
+      const created = await api.createOperationalRequest({
+        type: 'CANCELLATION',
+        store: store.id,
+        customer: customer.id,
+        source_order: selectedOrder.id,
+        create_refund: createRefund,
+        items: [],
+        notes: notes.trim() || undefined,
+      }, clientRequestId);
+      setCustomer(null);
+      setOrders([]);
+      setSelectedOrderId('');
+      setCreateRefund(false);
+      setNotes('');
+      clientRequestIdRef.current = null;
+      setFeedback({
+        kind: 'success',
+        message: `Cancelamento #${created.id} enviado para aprovação da retaguarda.`,
+      });
+      onCreated();
+    } catch (requestError) {
+      setFeedback({ kind: 'error', message: (requestError as Error).message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      id="panel-cancellation"
+      className="tab-panel tab-enter"
+      role="tabpanel"
+      aria-labelledby="tab-cancellation"
+      hidden={!active}
+    >
+      <div className="workspace-intro">
+        <div>
+          <span className="eyebrow cancellation-color">Nova solicitação</span>
+          <h1>Cancelamento de venda</h1>
+          <p>Selecione a venda inteira e escolha se o valor pago será devolvido em dinheiro ou mantido como crédito na loja.</p>
+        </div>
+        <div className="workspace-context"><span>Loja</span><strong>{store.name}</strong></div>
+      </div>
+
+      <section className="form-section">
+        <div className="section-heading">
+          <div><span className="step-number">01</span><h2>Cliente</h2></div>
+          <p>Somente vendas confirmadas e ainda não devolvidas podem ser canceladas.</p>
+        </div>
+        <CustomerPicker
+          store={store}
+          selected={customer}
+          disabled={submitting}
+          onSelect={(nextCustomer) => {
+            setCustomer(nextCustomer);
+            setOrders([]);
+            setSelectedOrderId('');
+            setCreateRefund(false);
+            setFeedback(null);
+            clientRequestIdRef.current = null;
+          }}
+        />
+      </section>
+
+      <section className="form-section cancellation-orders">
+        <div className="section-heading">
+          <div><span className="step-number">02</span><h2>Venda para cancelar</h2></div>
+          <p>{selectedOrder ? selectedOrder.order_label : 'Nenhuma venda selecionada'}</p>
+        </div>
+        {loading ? <div className="loading-row" aria-live="polite">Buscando vendas do cliente...</div> : !customer ? (
+          <div className="empty-state">Selecione um cliente para consultar as vendas.</div>
+        ) : !orders.length ? (
+          <div className="empty-state">Nenhuma venda disponível para cancelamento.</div>
+        ) : (
+          <div className="table-scroll">
+            <table className="data-table cancellation-table">
+              <thead><tr><th>Selecionar</th><th>Venda</th><th>Data</th><th>Peças</th><th>Pagamento</th><th>Total</th><th>Reembolsável</th></tr></thead>
+              <tbody>
+                {orders.map((order) => {
+                  const selected = String(order.id) === selectedOrderId;
+                  return (
+                    <tr className={selected ? 'selected-row' : ''} key={order.id} onClick={() => selectOrder(order)}>
+                      <td data-label="Selecionar">
+                        <input
+                          type="radio"
+                          name="cancellation-order"
+                          checked={selected}
+                          disabled={submitting}
+                          onChange={() => selectOrder(order)}
+                          aria-label={`Selecionar ${order.order_label}`}
+                        />
+                      </td>
+                      <td data-label="Venda"><strong>{order.order_label}</strong></td>
+                      <td data-label="Data">{formatDate(order.sale_date)}</td>
+                      <td data-label="Peças" className="cancellation-items-cell">
+                        {order.items.map((item) => `${item.quantity}× ${item.description}`).join(', ')}
+                      </td>
+                      <td data-label="Pagamento">{order.payment_method_display}</td>
+                      <td data-label="Total"><strong>{formatCurrency(Number(order.total_value))}</strong></td>
+                      <td data-label="Reembolsável">{formatCurrency(Number(order.refundable_amount))}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="form-section cancellation-decision">
+        <div className="section-heading">
+          <div><span className="step-number">03</span><h2>Como o valor foi resolvido?</h2></div>
+        </div>
+        <label className={`refund-choice ${createRefund ? 'selected' : ''} ${selectedOrder && !selectedOrder.has_refundable_payment ? 'unavailable' : ''}`}>
+          <input
+            type="checkbox"
+            checked={createRefund}
+            disabled={submitting || !selectedOrder?.has_refundable_payment}
+            onChange={(event) => {
+              setCreateRefund(event.target.checked);
+              setFeedback(null);
+              clientRequestIdRef.current = null;
+            }}
+          />
+          <span>
+            <strong>
+              {selectedOrder && !selectedOrder.has_refundable_payment
+                ? 'Não há dinheiro registrado para devolver'
+                : 'O dinheiro já foi devolvido em mãos ao cliente'}
+            </strong>
+            <small>
+              {selectedOrder?.has_refundable_payment
+                ? `Marque somente depois de entregar ${formatCurrency(Number(selectedOrder.refundable_amount))} ao cliente.`
+                : selectedOrder
+                  ? `${selectedOrder.order_label} está como ${selectedOrder.payment_method_display}, com ${formatCurrency(Number(selectedOrder.refundable_amount))} recebido.`
+                  : 'Selecione uma venda para escolher o destino do valor.'}
+            </small>
+          </span>
+        </label>
+        {selectedOrder && !selectedOrder.has_refundable_payment ? (
+          <div className="cancellation-no-payment" role="note">
+            <div className="cancellation-route-icon" aria-hidden="true">
+              <svg viewBox="0 0 32 32">
+                <circle cx="16" cy="16" r="11" />
+                <path d="m8.5 8.5 15 15" />
+              </svg>
+            </div>
+            <div>
+              <span className="cancellation-route-label">SEM PAGAMENTO REGISTRADO</span>
+              <strong>O cancelamento retirará somente a dívida desta venda</strong>
+              <ul>
+                <li><b>Dinheiro devolvido:</b> R$ 0,00</li>
+                <li><b>Crédito na loja:</b> R$ 0,00</li>
+                <li><b>Dívida de {formatCurrency(Number(selectedOrder.total_value))}:</b> será cancelada</li>
+              </ul>
+              <p>Se o cliente realmente pagou essa venda, o pagamento precisa ser registrado no sistema antes de marcar dinheiro devolvido.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="cancellation-routes" aria-label="O que acontece com o botão marcado ou desmarcado">
+            <div className={`cancellation-route cash ${createRefund ? 'active' : ''}`}>
+              <div className="cancellation-route-icon" aria-hidden="true">
+                <svg viewBox="0 0 32 32">
+                  <rect x="4" y="8" width="24" height="16" rx="3" />
+                  <circle cx="16" cy="16" r="4" />
+                  <path d="M8 12h2M22 20h2" />
+                </svg>
+              </div>
+              <div>
+                <span className="cancellation-route-label">BOTÃO MARCADO</span>
+                <strong>Dinheiro entregue em mãos</strong>
+                <ul>
+                  <li>Registra o reembolso como concluído</li>
+                  <li><b>Crédito gerado:</b> R$ 0,00</li>
+                  <li><b>Outras pendências:</b> não altera</li>
+                </ul>
+              </div>
+            </div>
+            <div className={`cancellation-route credit ${selectedOrder && !createRefund ? 'active' : ''}`}>
+              <div className="cancellation-route-icon" aria-hidden="true">
+                <svg viewBox="0 0 32 32">
+                  <path d="M5 10.5h20a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-14a4 4 0 0 1 4-4h15" />
+                  <path d="M22 16h6v6h-6a3 3 0 0 1 0-6Z" />
+                  <circle cx="23" cy="19" r=".8" />
+                </svg>
+              </div>
+              <div>
+                <span className="cancellation-route-label">BOTÃO DESMARCADO</span>
+                <strong>Valor vira crédito na loja</strong>
+                <ul>
+                  <li>Não registra dinheiro entregue</li>
+                  <li><b>Valor pago:</b> vira crédito</li>
+                  <li><b>Outras pendências:</b> pode abater</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className={`cancellation-result ${selectedOrder && !selectedOrder.has_refundable_payment ? 'no-payment' : createRefund ? 'cash' : 'credit'}`} role="status">
+          <strong>Se enviar agora:</strong>
+          <span>
+            {!selectedOrder
+              ? ' selecione uma venda para visualizar o resultado.'
+              : createRefund
+                ? ` será registrado que ${formatCurrency(Number(selectedOrder.refundable_amount))} já foi entregue em mãos. Nenhum crédito será gerado e as outras pendências não serão alteradas.`
+                : selectedOrder.has_refundable_payment
+                  ? ` ${formatCurrency(Number(selectedOrder.refundable_amount))} será lançado como crédito na loja e poderá abater outras pendências.`
+                  : ` a dívida de ${formatCurrency(Number(selectedOrder.total_value))} será cancelada. Não será gerado reembolso nem crédito na loja, pois não existe pagamento registrado.`}
+          </span>
+        </div>
+        <p className="cancellation-credit-note">
+          Depois, existe somente a confirmação do cancelamento pela retaguarda. Não haverá uma segunda aprovação do reembolso.
+        </p>
+      </section>
+
+      <div className="form-footer">
+        <label className="field grow-field">
+          <span>Motivo ou observações <small>opcional</small></span>
+          <input
+            value={notes}
+            disabled={submitting}
+            onChange={(event) => {
+              setNotes(event.target.value);
+              setFeedback(null);
+              clientRequestIdRef.current = null;
+            }}
+            placeholder="Ex.: cliente desistiu da compra"
+          />
+        </label>
+        <div className="form-footer-action">
+          {feedback && <div className={`inline-alert ${feedback.kind}`} role={feedback.kind === 'error' ? 'alert' : 'status'}>{feedback.message}</div>}
+          <button className="button danger" type="button" disabled={submitting || loading || !selectedOrder} onClick={submit}>
+            {submitting ? 'Enviando...' : 'Enviar cancelamento para aprovação'}
+          </button>
+          <p className="action-note">O cancelamento e o lançamento financeiro acontecem somente após a aprovação da retaguarda.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EmployeeWorkspace({ user, onLogout }: { user: EmployeeUser; onLogout: () => void }) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('sale');
   const [storeId, setStoreId] = useState(() => String(user.allowed_stores?.[0]?.id || ''));
@@ -1364,6 +1734,7 @@ export default function EmployeeWorkspace({ user, onLogout }: { user: EmployeeUs
   const [saleDraft, setSaleDraft] = useState<DraftState>({ dirty: false, submitting: false });
   const [warrantyDraft, setWarrantyDraft] = useState<DraftState>({ dirty: false, submitting: false });
   const [returnDraft, setReturnDraft] = useState<DraftState>({ dirty: false, submitting: false });
+  const [cancellationDraft, setCancellationDraft] = useState<DraftState>({ dirty: false, submitting: false });
   const stores = useMemo(() => user.allowed_stores || [], [user.allowed_stores]);
   const selectedStore = useMemo(
     () => stores.find((store) => String(store.id) === storeId) || null,
@@ -1374,12 +1745,13 @@ export default function EmployeeWorkspace({ user, onLogout }: { user: EmployeeUs
   const handleSaleDraft = useCallback((state: DraftState) => setSaleDraft(state), []);
   const handleWarrantyDraft = useCallback((state: DraftState) => setWarrantyDraft(state), []);
   const handleReturnDraft = useCallback((state: DraftState) => setReturnDraft(state), []);
-  const isSubmitting = saleDraft.submitting || warrantyDraft.submitting || returnDraft.submitting;
-  const hasDraft = saleDraft.dirty || warrantyDraft.dirty || returnDraft.dirty;
+  const handleCancellationDraft = useCallback((state: DraftState) => setCancellationDraft(state), []);
+  const isSubmitting = saleDraft.submitting || warrantyDraft.submitting || returnDraft.submitting || cancellationDraft.submitting;
+  const hasDraft = saleDraft.dirty || warrantyDraft.dirty || returnDraft.dirty || cancellationDraft.dirty;
 
   const changeStore = (nextStoreId: string) => {
     if (nextStoreId === storeId || isSubmitting) return;
-    if (hasDraft && !window.confirm('Trocar de loja descartará os rascunhos de venda, garantia e devolução. Deseja continuar?')) {
+    if (hasDraft && !window.confirm('Trocar de loja descartará os rascunhos de venda, garantia, devolução e cancelamento. Deseja continuar?')) {
       return;
     }
     setStoreId(nextStoreId);
@@ -1422,6 +1794,7 @@ export default function EmployeeWorkspace({ user, onLogout }: { user: EmployeeUs
           ['warranty', 'Garantia / Troca'],
           ['requests', 'Solicitações'],
           ['return', 'Devolução'],
+          ['cancellation', 'Cancelamento'],
         ] as [WorkspaceTab, string][]).map(([tab, label]) => (
           <button
             key={tab}
@@ -1465,6 +1838,12 @@ export default function EmployeeWorkspace({ user, onLogout }: { user: EmployeeUs
               active={activeTab === 'return'}
               onCreated={handleCreated}
               onDraftStateChange={handleReturnDraft}
+            />
+            <CancellationTab
+              store={selectedStore}
+              active={activeTab === 'cancellation'}
+              onCreated={handleCreated}
+              onDraftStateChange={handleCancellationDraft}
             />
           </>
         )}

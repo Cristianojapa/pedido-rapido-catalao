@@ -114,6 +114,8 @@ const MOVEMENT_CONFIG: Record<string, { label: string; color: string; bgColor: s
     PAGAMENTO: { label: 'Pagamento', color: '#15803d', bgColor: '#f0fdf4', icon: '💰' },
     PAGAMENTO_CANCELADO: { label: 'Pgto Cancelado', color: '#b91c1c', bgColor: '#fef2f2', icon: '⚠️' },
     REEMBOLSO: { label: 'Reembolso', color: '#1d4ed8', bgColor: '#eff6ff', icon: '↩️' },
+    REEMBOLSO_PENDENTE: { label: 'Reembolso pendente', color: '#a16207', bgColor: '#fefce8', icon: '⏳' },
+    REEMBOLSO_CANCELADO: { label: 'Reembolso cancelado', color: '#64748b', bgColor: '#f1f5f9', icon: '✖️' },
     DEVOLUCAO: { label: 'Devolução', color: '#0f766e', bgColor: '#f0fdfa', icon: '📦' },
     DIVIDA_HISTORICA: { label: 'Dívida Histórica', color: '#b45309', bgColor: '#fffbeb', icon: '📋' },
     CREDITO_REEMBOLSO: { label: 'Crédito', color: '#15803d', bgColor: '#f0fdf4', icon: '💳' },

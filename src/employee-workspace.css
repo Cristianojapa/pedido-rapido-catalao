@@ -82,6 +82,8 @@ a { color: inherit; }
 .button:hover:not(:disabled) { transform: translateY(-1px); }
 .button.primary { background: var(--blue); color: white; }
 .button.primary:hover:not(:disabled) { background: var(--blue-dark); }
+.button.danger { background: var(--red); color: white; }
+.button.danger:hover:not(:disabled) { background: #b42318; }
 .button.secondary { border-color: var(--line-strong); background: white; color: var(--ink); }
 .button.secondary:hover:not(:disabled), .button.ghost:hover:not(:disabled) { background: var(--surface-soft); }
 .button.ghost { color: var(--muted); }
@@ -151,6 +153,7 @@ a { color: inherit; }
 
 .eyebrow.warranty-color { color: var(--violet); }
 .eyebrow.return-color { color: var(--amber); }
+.eyebrow.cancellation-color { color: var(--red); }
 
 .store-select-copy { position: sticky; top: 130px; }
 .store-select-copy h1 {
@@ -289,7 +292,6 @@ a { color: inherit; }
 .number-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
 :is(.employee-shell, .public-shell) .products-table th:nth-child(5), :is(.employee-shell, .public-shell) .products-table td:nth-child(5) { width: 142px; }
 :is(.employee-shell, .public-shell) .quantity-input { width: 104px; height: 34px; display: grid; grid-template-columns: 32px 1fr 32px; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; background: white; }
-:is(.employee-shell, .public-shell) .quantity-input.compact { width: 96px; height: 32px; }
 :is(.employee-shell, .public-shell) .quantity-input button { border: 0; background: var(--surface-soft); color: var(--muted); font-size: 17px; }
 :is(.employee-shell, .public-shell) .quantity-input button:hover { background: var(--blue-soft); color: var(--blue); }
 :is(.employee-shell, .public-shell) .quantity-input span { display: grid; place-items: center; border-inline: 1px solid var(--line); font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; }
@@ -549,13 +551,130 @@ a { color: inherit; }
 
 .warranty-purchases { margin-top: 34px; }
 .warranty-table td:nth-child(3) { min-width: 230px; }
+.warranty-table th:nth-child(5), .warranty-table td:nth-child(5) { width: 150px; min-width: 150px; }
 .warranty-table td:nth-child(6) { min-width: 270px; }
 .warranty-table td small { display: block; margin-top: 4px; color: var(--muted); }
+.eligible-origin-cell { min-width: 190px; }
+.replacement-origin-badge {
+  width: fit-content;
+  margin-top: 5px;
+  border: 1px solid #c9d8fb;
+  border-radius: 999px;
+  padding: 3px 7px;
+  display: block;
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .table-input { height: 36px; font-size: 12px; }
 .table-input:disabled { background: var(--surface-soft); }
 .form-footer { position: sticky; z-index: 15; bottom: 0; margin-top: 26px; border-top: 1px solid var(--line-strong); padding: 17px 20px; display: flex; align-items: end; gap: 22px; background: rgba(255, 255, 255, 0.97); box-shadow: 0 -8px 24px rgba(20, 31, 52, 0.05); backdrop-filter: blur(12px); }
 .grow-field { flex: 1; }
 .form-footer-action { min-width: 280px; display: grid; gap: 8px; justify-items: end; }
+
+.cancellation-orders { margin-top: 34px; }
+.cancellation-table tbody tr { cursor: pointer; }
+.cancellation-table th:first-child,
+.cancellation-table td:first-child { width: 86px; text-align: center; }
+.cancellation-table input[type='radio'] { width: 18px; height: 18px; accent-color: var(--red); }
+.cancellation-items-cell { min-width: 300px; color: var(--muted); line-height: 1.45; }
+.cancellation-decision { margin-top: 34px; }
+.refund-choice {
+  max-width: 900px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 17px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: white;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+.refund-choice.selected { border-color: var(--green); background: var(--green-soft); box-shadow: 0 0 0 3px rgba(20, 129, 93, 0.08); }
+.refund-choice input { width: 20px; height: 20px; margin-top: 1px; accent-color: var(--green); }
+.refund-choice.unavailable { border-color: #f0d39a; background: #fffaf0; cursor: default; }
+.refund-choice.unavailable input { cursor: default; opacity: 0.5; }
+.refund-choice > span { display: grid; gap: 5px; }
+.refund-choice strong { font-size: 14px; }
+.refund-choice small,
+.cancellation-credit-note { color: var(--muted); font-size: 11px; line-height: 1.55; }
+.cancellation-routes {
+  max-width: 900px;
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.cancellation-route {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  background: var(--surface-soft);
+  opacity: 0.67;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+.cancellation-route.active { opacity: 1; transform: translateY(-1px); }
+.cancellation-route.cash.active { border-color: #9bd5c1; background: var(--green-soft); box-shadow: 0 6px 16px rgba(20, 129, 93, 0.08); }
+.cancellation-route.credit.active { border-color: #b8cbf7; background: var(--blue-soft); box-shadow: 0 6px 16px rgba(36, 99, 235, 0.08); }
+.cancellation-route-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: white;
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px rgba(203, 211, 223, 0.8);
+}
+.cancellation-route.cash.active .cancellation-route-icon { color: var(--green); }
+.cancellation-route.credit.active .cancellation-route-icon { color: var(--blue); }
+.cancellation-route-icon svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cancellation-route > div:last-child { min-width: 0; display: grid; }
+.cancellation-route-label { margin-bottom: 4px; color: var(--muted); font-size: 9px; font-weight: 850; letter-spacing: 0.08em; }
+.cancellation-route strong { color: var(--ink); font-size: 13px; }
+.cancellation-route ul { margin: 9px 0 0; padding-left: 17px; color: var(--muted); font-size: 10px; line-height: 1.65; }
+.cancellation-route b { color: var(--ink); font-weight: 750; }
+.cancellation-no-payment {
+  max-width: 900px;
+  margin-top: 12px;
+  border: 1px solid #f0d39a;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  background: #fffaf0;
+}
+.cancellation-no-payment .cancellation-route-icon { color: var(--amber); }
+.cancellation-no-payment > div:last-child { min-width: 0; display: grid; }
+.cancellation-no-payment strong { color: var(--ink); font-size: 13px; }
+.cancellation-no-payment ul { margin: 9px 0 0; padding-left: 17px; color: var(--muted); font-size: 10px; line-height: 1.65; }
+.cancellation-no-payment b { color: var(--ink); font-weight: 750; }
+.cancellation-no-payment p { margin: 10px 0 0; color: var(--amber); font-size: 10px; font-weight: 650; line-height: 1.5; }
+.cancellation-result {
+  max-width: 900px;
+  margin-top: 12px;
+  border-left: 4px solid var(--blue);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--blue-soft);
+  color: #34425a;
+  font-size: 12px;
+  line-height: 1.55;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+.cancellation-result.cash { border-left-color: var(--green); background: var(--green-soft); }
+.cancellation-result.no-payment { border-left-color: var(--amber); background: #fff8e8; }
+.cancellation-result strong { color: var(--ink); }
+.cancellation-credit-note { max-width: 900px; margin: 10px 0 0; }
 
 .request-filter-bar {
   margin: -14px 0 18px;
@@ -614,6 +733,7 @@ a { color: inherit; }
 .type-marker { color: var(--blue-dark); background: var(--blue-soft); }
 .type-warranty_exchange { color: var(--violet); background: var(--violet-soft); }
 .type-return { color: var(--amber); background: var(--amber-soft); }
+.type-cancellation { color: var(--red); background: #fff1f1; }
 .status-badge { color: #596579; background: #edf0f4; }
 .status-new, .status-pending { color: var(--blue-dark); background: var(--blue-soft); }
 .status-in_review, .status-in_separation, .status-in_progress, .status-processing { color: var(--amber); background: var(--amber-soft); }
@@ -673,6 +793,7 @@ a { color: inherit; }
 }
 
 @media (max-width: 680px) {
+  .cancellation-routes { grid-template-columns: 1fr; }
   .public-header-inner, .catalog-main, .public-checkout-inner, .public-shell .store-select-page { width: min(100% - 28px, 1440px); }
   .employee-entry { width: 42px; padding-inline: 10px; font-size: 0; }
   .public-header-actions .button.ghost { display: none; }

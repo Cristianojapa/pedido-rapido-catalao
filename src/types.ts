@@ -137,7 +137,7 @@ export type PaymentMethod =
   | 'CREDIT_CARD'
   | 'PENDING';
 
-export type OperationalRequestType = 'SALE' | 'WARRANTY_EXCHANGE' | 'RETURN';
+export type OperationalRequestType = 'SALE' | 'WARRANTY_EXCHANGE' | 'RETURN' | 'CANCELLATION';
 
 export type DeliveryMethod = 'CUSTOMER_PICKUP' | 'MOTOBOY';
 
@@ -145,6 +145,7 @@ export interface OperationalRequestItemInput {
   product_id: string;
   quantity: number;
   source_order_item?: number | string;
+  source_warranty?: number | string;
   defect?: string;
   notes?: string;
 }
@@ -159,6 +160,8 @@ export interface OperationalRequestInput {
   number_of_installments?: number;
   bank?: number | string | null;
   notes?: string;
+  source_order?: number | string;
+  create_refund?: boolean;
   client_request_id?: string;
 }
 
@@ -167,6 +170,7 @@ export interface OperationalRequestItem {
   product?: string;
   product_id?: string;
   source_order_item?: number | string | null;
+  source_warranty?: number | string | null;
   quantity: number;
   product_description?: string;
   unit_price?: number | string;
@@ -198,13 +202,19 @@ export interface OperationalRequest {
   ready_at?: string | null;
   delivered_at?: string | null;
   defective_received_at?: string | null;
+  source_order?: number | string | null;
+  create_refund?: boolean;
+  generated_refund?: number | string | null;
   idempotent?: boolean;
   created_at: string;
 }
 
 export interface EligiblePurchaseItem {
+  eligibility_id: string;
   source_order_id: number | string;
   source_order_item_id: number | string;
+  source_warranty_id: number | string | null;
+  source_kind: 'PURCHASE' | 'WARRANTY_REPLACEMENT';
   order_label: string;
   order_date: string | null;
   product_id: string;
@@ -212,10 +222,33 @@ export interface EligiblePurchaseItem {
   color: string | null;
   purchased_quantity: number;
   eligible_quantity: number;
+  warranty_generation: number;
+  next_warranty_generation: number;
 }
 
 export interface WarrantySelection {
   item: EligiblePurchaseItem;
   quantity: number;
   defect_description: string;
+}
+
+export interface EligibleCancellationOrder {
+  id: number | string;
+  order: number | string;
+  order_label: string;
+  sale_date: string | null;
+  store: number | string;
+  store_name: string;
+  payment_method: string;
+  payment_method_display: string;
+  total_value: number | string;
+  refundable_amount: number | string;
+  has_refundable_payment: boolean;
+  items: Array<{
+    id: number | string;
+    product: number | string;
+    description: string;
+    quantity: number;
+    total_value: number | string;
+  }>;
 }
