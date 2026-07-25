@@ -1792,9 +1792,9 @@ export default function EmployeeWorkspace({ user, onLogout }: { user: EmployeeUs
         {([
           ['sale', 'Venda'],
           ['warranty', 'Garantia / Troca'],
-          ['requests', 'Solicitações'],
           ['return', 'Devolução'],
           ['cancellation', 'Cancelamento'],
+          ['requests', 'Solicitações'],
         ] as [WorkspaceTab, string][]).map(([tab, label]) => (
           <button
             key={tab}
