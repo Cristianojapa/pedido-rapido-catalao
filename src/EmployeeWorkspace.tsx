@@ -60,6 +60,25 @@ const STATUS_LABELS: Record<string, string> = {
   BLOCKED: 'Com pendência',
 };
 
+const REQUEST_TYPE_FILTER_OPTIONS = [
+  { value: 'SALE', label: 'Venda' },
+  { value: 'WARRANTY_EXCHANGE', label: 'Garantia / Troca' },
+  { value: 'RETURN', label: 'Devolução' },
+];
+
+const REQUEST_STATUS_FILTER_OPTIONS = [
+  { value: 'NEW', label: 'Novo' },
+  { value: 'IN_PROGRESS', label: 'Em andamento' },
+  { value: 'SEPARATING', label: 'Em separação' },
+  { value: 'READY_FOR_DELIVERY', label: 'Pronto para entrega' },
+  { value: 'AWAITING_DEFECTIVE', label: 'Aguardando peça com defeito' },
+  { value: 'COMPLETED', label: 'Concluído' },
+  { value: 'BLOCKED', label: 'Com pendência' },
+  { value: 'CANCELLED', label: 'Cancelado' },
+];
+
+const REQUESTS_LIVE_REFRESH_INTERVAL_MS = 3_000;
+
 function employeeName(user: EmployeeUser): string {
   const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
   return fullName || user.email;
@@ -860,7 +879,11 @@ function RequestsTab({
   const [actionId, setActionId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [sellerFilter, setSellerFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const loadSequence = useRef(0);
+  const liveRefreshInFlight = useRef(false);
+  const actionInFlight = useRef(false);
 
   const loadRequests = useCallback(async (silent = false) => {
     const sequence = ++loadSequence.current;
@@ -883,6 +906,8 @@ function RequestsTab({
 
   useEffect(() => {
     setSellerFilter('ALL');
+    setTypeFilter('ALL');
+    setStatusFilter('ALL');
   }, [store.id]);
 
   useEffect(() => {
@@ -891,10 +916,36 @@ function RequestsTab({
       return;
     }
     void loadRequests();
-    const interval = window.setInterval(() => void loadRequests(true), 30_000);
+
+    const refreshLive = () => {
+      if (
+        document.visibilityState !== 'visible'
+        || actionInFlight.current
+        || liveRefreshInFlight.current
+      ) {
+        return;
+      }
+
+      liveRefreshInFlight.current = true;
+      void loadRequests(true).finally(() => {
+        liveRefreshInFlight.current = false;
+      });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshLive();
+    };
+
+    const interval = window.setInterval(
+      refreshLive,
+      REQUESTS_LIVE_REFRESH_INTERVAL_MS,
+    );
+    window.addEventListener('focus', refreshLive);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       loadSequence.current += 1;
       window.clearInterval(interval);
+      window.removeEventListener('focus', refreshLive);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [active, loadRequests, refreshKey, reloadKey]);
 
@@ -914,14 +965,20 @@ function RequestsTab({
   );
 
   const visibleRequests = useMemo(() => {
-    if (sellerFilter === 'ALL') return requests;
-    if (sellerFilter === 'ME') return requests.filter(isMyRequest);
     const sellerId = sellerFilter.replace(/^SELLER:/, '');
-    return requests.filter((request) => requestCreatorId(request) === sellerId);
-  }, [isMyRequest, requests, sellerFilter]);
+    return requests.filter((request) => {
+      const matchesSeller = sellerFilter === 'ALL'
+        || (sellerFilter === 'ME' && isMyRequest(request))
+        || (sellerFilter.startsWith('SELLER:') && requestCreatorId(request) === sellerId);
+      const matchesType = typeFilter === 'ALL' || request.type === typeFilter;
+      const matchesStatus = statusFilter === 'ALL' || request.status === statusFilter;
+      return matchesSeller && matchesType && matchesStatus;
+    });
+  }, [isMyRequest, requests, sellerFilter, statusFilter, typeFilter]);
 
   const confirmDelivery = async (request: OperationalRequest) => {
     const requestId = String(request.id);
+    actionInFlight.current = true;
     setActionId(requestId);
     setFeedback(null);
     setError(null);
@@ -939,6 +996,7 @@ function RequestsTab({
     } catch (requestError) {
       setError((requestError as Error).message);
     } finally {
+      actionInFlight.current = false;
       setActionId(null);
     }
   };
@@ -957,32 +1015,66 @@ function RequestsTab({
           <h1>Solicitações</h1>
           <p>Acompanhe o que todos os vendedores da loja enviaram para a retaguarda.</p>
         </div>
-        <button className="button secondary" type="button" disabled={loading} onClick={() => {
-          setFeedback(null);
-          setError(null);
-          setReloadKey((key) => key + 1);
-        }}>
-          {loading ? 'Atualizando...' : 'Atualizar lista'}
-        </button>
+        <div className="requests-live-actions">
+          <span className="requests-live-status" role="status">
+            <span className="requests-live-dot" aria-hidden="true" />
+            Ao vivo · até 3 s
+          </span>
+          <button className="button secondary" type="button" disabled={loading} onClick={() => {
+            setFeedback(null);
+            setError(null);
+            setReloadKey((key) => key + 1);
+          }}>
+            {loading ? 'Atualizando...' : 'Atualizar lista'}
+          </button>
+        </div>
       </div>
 
       <div className="request-filter-bar">
-        <label className="request-seller-filter">
-          <span>Vendedor que criou</span>
-          <select
-            value={sellerFilter}
-            disabled={loading}
-            onChange={(event) => setSellerFilter(event.target.value)}
-          >
-            <option value="ALL">Todos os vendedores</option>
-            <option value="ME">Meu login — {employeeName(user)}</option>
-            {sellerOptions
-              .filter((seller) => seller.id !== String(user.id))
-              .map((seller) => (
-                <option key={seller.id} value={`SELLER:${seller.id}`}>{seller.name}</option>
+        <div className="request-filter-controls">
+          <label className="request-list-filter request-seller-filter">
+            <span>Vendedor que criou</span>
+            <select
+              value={sellerFilter}
+              disabled={loading}
+              onChange={(event) => setSellerFilter(event.target.value)}
+            >
+              <option value="ALL">Todos os vendedores</option>
+              <option value="ME">Meu login — {employeeName(user)}</option>
+              {sellerOptions
+                .filter((seller) => seller.id !== String(user.id))
+                .map((seller) => (
+                  <option key={seller.id} value={`SELLER:${seller.id}`}>{seller.name}</option>
+                ))}
+            </select>
+          </label>
+          <label className="request-list-filter">
+            <span>Tipo</span>
+            <select
+              value={typeFilter}
+              disabled={loading}
+              onChange={(event) => setTypeFilter(event.target.value)}
+            >
+              <option value="ALL">Todos os tipos</option>
+              {REQUEST_TYPE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
-          </select>
-        </label>
+            </select>
+          </label>
+          <label className="request-list-filter">
+            <span>Status</span>
+            <select
+              value={statusFilter}
+              disabled={loading}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
+              <option value="ALL">Todos os status</option>
+              {REQUEST_STATUS_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
         <span className="request-filter-count">
           {visibleRequests.length} de {requests.length} solicitação(ões)
         </span>
@@ -995,7 +1087,7 @@ function RequestsTab({
       ) : !requests.length ? (
         error ? null : <div className="empty-state">Nenhuma solicitação foi enviada para esta loja.</div>
       ) : !visibleRequests.length ? (
-        <div className="empty-state">Nenhuma solicitação encontrada para este vendedor.</div>
+        <div className="empty-state">Nenhuma solicitação encontrada para os filtros selecionados.</div>
       ) : (
         <div className="table-scroll request-list-table">
           <table className="data-table">
@@ -1014,7 +1106,7 @@ function RequestsTab({
                     {request.status_reason || `${request.items?.length || 0} item(ns) · ${formatCurrency(Number(request.total_value || 0))}`}
                   </td>
                   <td data-label="Ação">
-                    {request.status === 'READY_FOR_DELIVERY' && isMyRequest(request) ? (
+                    {['SEPARATING', 'READY_FOR_DELIVERY'].includes(request.status) && isMyRequest(request) ? (
                       <button
                         type="button"
                         className="button primary compact-action"
@@ -1027,7 +1119,7 @@ function RequestsTab({
                             ? 'Entreguei e recebi a defeituosa'
                             : 'Marcar como entregue'}
                       </button>
-                    ) : request.status === 'READY_FOR_DELIVERY' ? (
+                    ) : ['SEPARATING', 'READY_FOR_DELIVERY'].includes(request.status) ? (
                       <span className="table-muted">Aguardando {requestCreatorName(request)}</span>
                     ) : request.status === 'AWAITING_DEFECTIVE' && isMyRequest(request) ? (
                       <span className="table-muted">Levar defeituosa ao estoque</span>

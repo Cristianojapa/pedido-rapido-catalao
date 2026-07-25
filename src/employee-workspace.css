@@ -566,15 +566,38 @@ a { color: inherit; }
   justify-content: space-between;
   gap: 18px;
 }
-.request-seller-filter { min-width: 300px; display: grid; gap: 6px; }
-.request-seller-filter > span {
+.requests-live-actions { display: flex; align-items: center; gap: 12px; }
+.requests-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.requests-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px var(--green-soft);
+  animation: requests-live-pulse 1.8s ease-in-out infinite;
+}
+@keyframes requests-live-pulse {
+  50% { opacity: 0.45; }
+}
+.request-filter-controls { display: flex; align-items: end; gap: 10px; }
+.request-list-filter { min-width: 180px; display: grid; gap: 6px; }
+.request-seller-filter { min-width: 300px; }
+.request-list-filter > span {
   color: var(--muted);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
-.request-seller-filter select {
+.request-list-filter select {
   height: 40px;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
@@ -582,7 +605,7 @@ a { color: inherit; }
   background: white;
   color: var(--ink);
 }
-.request-seller-filter select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(36, 99, 235, 0.1); outline: 0; }
+.request-list-filter select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(36, 99, 235, 0.1); outline: 0; }
 .request-filter-count { padding-bottom: 11px; color: var(--muted); font-size: 11px; }
 .request-list-table { min-height: 180px; }
 .request-seller-cell { min-width: 170px; font-weight: 650; }
@@ -682,8 +705,10 @@ a { color: inherit; }
   .employee-main { width: min(100% - 28px, 1540px); padding-top: 28px; }
   .workspace-intro { min-height: 0; align-items: start; flex-direction: column; gap: 18px; }
   .workspace-intro h1 { font-size: 27px; }
+  .requests-live-actions { width: 100%; justify-content: space-between; }
   .request-filter-bar { margin-top: 0; align-items: stretch; flex-direction: column; gap: 10px; }
-  .request-seller-filter { width: 100%; min-width: 0; }
+  .request-filter-controls { display: grid; grid-template-columns: 1fr; }
+  .request-list-filter, .request-seller-filter { width: 100%; min-width: 0; }
   .request-filter-count { padding-bottom: 0; }
   .workspace-context { border-left: 0; border-top: 1px solid var(--line); padding: 10px 0 0; }
   .section-heading { align-items: start; flex-direction: column; gap: 8px; }

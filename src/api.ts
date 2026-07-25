@@ -615,7 +615,7 @@ export const api = {
     });
     let data = await employeeRequest<unknown>(
       `/api/operational-requests/?${params}`,
-      {},
+      { cache: 'no-store' },
       'Não foi possível carregar as solicitações da loja.',
     );
     const rows = unwrapList<Record<string, unknown>>(data);
@@ -631,7 +631,7 @@ export const api = {
       const parsed = new URL(next, window.location.origin);
       data = await employeeRequest<unknown>(
         `${parsed.pathname}${parsed.search}`,
-        {},
+        { cache: 'no-store' },
         'Não foi possível carregar todas as solicitações da loja.',
       );
       rows.push(...unwrapList<Record<string, unknown>>(data));
