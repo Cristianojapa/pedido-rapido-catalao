@@ -227,6 +227,22 @@ a { color: inherit; }
 .product-heading > div { display: block; }
 .product-heading p { margin-top: 5px; }
 
+.eligible-list-toolbar {
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.eligible-list-toolbar > span {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.eligibility-search {
+  margin: 0;
+}
+
 .search-field {
   width: min(100%, 340px);
   height: 42px;
@@ -539,6 +555,20 @@ a { color: inherit; }
 .compact-line > div { min-width: 0; display: grid; gap: 3px; }
 .compact-line strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .compact-line span { color: var(--muted); font-size: 11px; }
+.compact-price-field { display: flex; align-items: center; gap: 6px; }
+.compact-price-field input {
+  width: 92px;
+  height: 32px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 0 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.compact-price-field input:focus { border-color: var(--blue); outline: 0; box-shadow: 0 0 0 3px rgba(36, 99, 235, 0.1); }
+.compact-price-field input[aria-invalid="true"] { border-color: #dc2626; }
 .text-button { border: 0; padding: 0; background: transparent; font-size: 10px; font-weight: 750; }
 .danger-text { color: var(--red); }
 .muted-copy { margin: 0; border-block: 1px solid var(--line); padding: 16px 0; color: var(--muted); font-size: 12px; }
@@ -833,6 +863,9 @@ a { color: inherit; }
   .request-filter-count { padding-bottom: 0; }
   .workspace-context { border-left: 0; border-top: 1px solid var(--line); padding: 10px 0 0; }
   .section-heading { align-items: start; flex-direction: column; gap: 8px; }
+  .eligible-list-toolbar { align-items: stretch; flex-direction: column; }
+  .eligible-list-toolbar > span { white-space: normal; }
+  .eligibility-search { width: 100%; }
   .request-inspector { padding: 16px; }
   .definition-list { flex-direction: column; }
   .definition-list span { border-right: 0; border-bottom: 1px solid var(--line); }

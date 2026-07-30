@@ -126,6 +126,35 @@ function formatDate(value: string | null | undefined): string {
   ).format(date);
 }
 
+function normalizedSearchText(...values: Array<unknown>): string {
+  return values
+    .filter((value) => value !== null && value !== undefined)
+    .join(' ')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR');
+}
+
+function compareNewestFirst(
+  leftDate: string | null,
+  rightDate: string | null,
+  leftId: number | string,
+  rightId: number | string,
+): number {
+  const parseDate = (value: string | null) => {
+    if (!value) return 0;
+    const parsed = new Date(
+      /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value,
+    ).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+  const dateDifference = parseDate(rightDate) - parseDate(leftDate);
+  if (dateDifference !== 0) return dateDifference;
+  return String(rightId).localeCompare(String(leftId), 'pt-BR', {
+    numeric: true,
+  });
+}
+
 function CustomerPicker({
   store,
   selected,
@@ -284,27 +313,53 @@ function CustomerPicker({
 function CartLines({
   cart,
   onRemove,
+  onUnitPriceChange,
   disabled = false,
 }: {
   cart: Map<string, CartItem>;
   onRemove: (productId: string) => void;
+  onUnitPriceChange: (productId: string, unitPrice: number) => void;
   disabled?: boolean;
 }) {
   const items = Array.from(cart.values());
   if (!items.length) return <p className="muted-copy">Nenhuma peça adicionada.</p>;
   return (
     <div className="compact-lines">
-      {items.map(({ product, quantity }) => (
-        <div className="compact-line" key={product.id}>
-          <div>
-            <strong>{product.description}</strong>
-            <span>{quantity} × {formatCurrency(product.price)}</span>
+      {items.map(({ product, quantity, unitPrice }) => {
+        const currentPrice = unitPrice ?? product.price;
+        return (
+          <div className="compact-line" key={product.id}>
+            <div>
+              <strong>{product.description}</strong>
+              <label className="compact-price-field">
+                <span>{quantity} × R$</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0.01"
+                  max="99999999.99"
+                  step="0.01"
+                  value={currentPrice}
+                  disabled={disabled}
+                  aria-label={`Preço unitário de ${product.description}`}
+                  aria-invalid={!Number.isFinite(currentPrice) || currentPrice <= 0}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) =>
+                    onUnitPriceChange(
+                      product.id,
+                      event.currentTarget.valueAsNumber,
+                    )
+                  }
+                />
+              </label>
+              <span>Subtotal: {formatCurrency(currentPrice * quantity)}</span>
+            </div>
+            <button type="button" className="text-button danger-text" disabled={disabled} onClick={() => onRemove(product.id)}>
+              Remover
+            </button>
           </div>
-          <button type="button" className="text-button danger-text" disabled={disabled} onClick={() => onRemove(product.id)}>
-            Remover
-          </button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -374,7 +429,11 @@ function SaleTab({
   }, [paymentMethod]);
 
   const items = Array.from(cart.values());
-  const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const total = items.reduce(
+    (sum, item) =>
+      sum + (item.unitPrice ?? item.product.price) * item.quantity,
+    0,
+  );
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const needsBank = paymentMethod !== '' && paymentMethod !== 'PENDING';
   const dirty = Boolean(customer || cart.size || notes.trim());
@@ -393,9 +452,29 @@ function SaleTab({
     invalidateRequestId();
     setCart((current) => {
       const next = new Map(current);
-      const quantity = (next.get(product.id)?.quantity || 0) + delta;
+      const existing = next.get(product.id);
+      const quantity = (existing?.quantity || 0) + delta;
       if (quantity <= 0) next.delete(product.id);
-      else next.set(product.id, { product, quantity });
+      else next.set(product.id, {
+        product,
+        quantity,
+        unitPrice: existing?.unitPrice ?? product.price,
+      });
+      return next;
+    });
+  };
+
+  const updateUnitPrice = (productId: string, unitPrice: number) => {
+    if (submitting) return;
+    invalidateRequestId();
+    setCart((current) => {
+      const item = current.get(productId);
+      if (!item) return current;
+      const next = new Map(current);
+      next.set(productId, {
+        ...item,
+        unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0,
+      });
       return next;
     });
   };
@@ -408,6 +487,15 @@ function SaleTab({
     }
     if (!items.length) {
       setFeedback({ kind: 'error', message: 'Adicione pelo menos uma peça.' });
+      return;
+    }
+    if (
+      items.some((item) => {
+        const unitPrice = item.unitPrice ?? item.product.price;
+        return !Number.isFinite(unitPrice) || unitPrice <= 0;
+      })
+    ) {
+      setFeedback({ kind: 'error', message: 'Informe um preço válido, maior que zero, para cada peça.' });
       return;
     }
     if (!paymentMethod) {
@@ -427,7 +515,11 @@ function SaleTab({
         type: 'SALE',
         store: store.id,
         customer: customer.id,
-        items: items.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
+        items: items.map(({ product, quantity, unitPrice }) => ({
+          product_id: product.id,
+          quantity,
+          unit_price: (unitPrice ?? product.price).toFixed(2),
+        })),
         delivery_method: deliveryMethod,
         payment_method: paymentMethod,
         number_of_installments: installments,
@@ -505,6 +597,7 @@ function SaleTab({
           <CartLines
             cart={cart}
             disabled={submitting}
+            onUnitPriceChange={updateUnitPrice}
             onRemove={(productId) => {
               invalidateRequestId();
               setCart((current) => {
@@ -650,6 +743,7 @@ function WarrantyTab({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [purchases, setPurchases] = useState<EligiblePurchaseItem[]>([]);
   const [selections, setSelections] = useState<Map<string, WarrantySelection>>(new Map());
+  const [pieceSearch, setPieceSearch] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -660,6 +754,7 @@ function WarrantyTab({
     setCustomer(null);
     setPurchases([]);
     setSelections(new Map());
+    setPieceSearch('');
     setNotes('');
     setLoading(false);
     setFeedback(null);
@@ -717,6 +812,27 @@ function WarrantyTab({
   };
 
   const selectedItems = Array.from(selections.values());
+  const visiblePurchases = useMemo(() => {
+    const search = normalizedSearchText(pieceSearch.trim());
+    return [...purchases]
+      .filter((item) =>
+        !search ||
+        normalizedSearchText(
+          item.description,
+          item.color,
+          item.order_label,
+          item.product_id,
+        ).includes(search),
+      )
+      .sort((left, right) =>
+        compareNewestFirst(
+          left.order_date,
+          right.order_date,
+          left.source_order_id,
+          right.source_order_id,
+        ),
+      );
+  }, [pieceSearch, purchases]);
 
   const submit = async () => {
     setFeedback(null);
@@ -752,6 +868,7 @@ function WarrantyTab({
       }, clientRequestId);
       setSelections(new Map());
       setCustomer(null);
+      setPieceSearch('');
       setNotes('');
       clientRequestIdRef.current = null;
       setFeedback({ kind: 'success', message: `Garantia #${created.id} enviada para análise.` });
@@ -792,6 +909,7 @@ function WarrantyTab({
           onSelect={(nextCustomer) => {
             setPurchases([]);
             setSelections(new Map());
+            setPieceSearch('');
             if (!nextCustomer) setLoading(false);
             setFeedback(null);
             clientRequestIdRef.current = null;
@@ -805,16 +923,34 @@ function WarrantyTab({
           <div><span className="step-number">02</span><h2>Peças elegíveis</h2></div>
           <p>{selectedItems.length} item(ns) selecionado(s)</p>
         </div>
+        {customer && purchases.length > 0 && (
+          <div className="eligible-list-toolbar">
+            <label className="search-field eligibility-search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                type="search"
+                value={pieceSearch}
+                disabled={submitting}
+                onChange={(event) => setPieceSearch(event.target.value)}
+                placeholder="Procurar peça para garantia"
+                aria-label="Procurar peça para garantia"
+              />
+            </label>
+            <span>Mais recentes primeiro · {visiblePurchases.length} resultado(s)</span>
+          </div>
+        )}
         {loading ? <div className="loading-row" aria-live="polite">Buscando histórico de compras...</div> : !customer ? (
           <div className="empty-state">Selecione um cliente para consultar as compras.</div>
         ) : !purchases.length ? (
           <div className="empty-state">Nenhuma peça elegível encontrada para este cliente.</div>
+        ) : !visiblePurchases.length ? (
+          <div className="empty-state">Nenhuma peça encontrada com esse filtro.</div>
         ) : (
           <div className="table-scroll">
             <table className="data-table warranty-table">
               <thead><tr><th>Origem</th><th>Data</th><th>Peça</th><th>Disponível</th><th>Quantidade</th><th>Defeito</th></tr></thead>
               <tbody>
-                {purchases.map((item) => {
+                {visiblePurchases.map((item) => {
                   const key = item.eligibility_id;
                   const selection = selections.get(key);
                   return (
@@ -1176,6 +1312,7 @@ function ReturnTab({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [purchases, setPurchases] = useState<EligiblePurchaseItem[]>([]);
   const [selections, setSelections] = useState<Map<string, WarrantySelection>>(new Map());
+  const [pieceSearch, setPieceSearch] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1186,6 +1323,7 @@ function ReturnTab({
     setCustomer(null);
     setPurchases([]);
     setSelections(new Map());
+    setPieceSearch('');
     setNotes('');
     setLoading(false);
     setFeedback(null);
@@ -1236,6 +1374,27 @@ function ReturnTab({
   };
 
   const selectedItems = Array.from(selections.values());
+  const visiblePurchases = useMemo(() => {
+    const search = normalizedSearchText(pieceSearch.trim());
+    return [...purchases]
+      .filter((item) =>
+        !search ||
+        normalizedSearchText(
+          item.description,
+          item.color,
+          item.order_label,
+          item.product_id,
+        ).includes(search),
+      )
+      .sort((left, right) =>
+        compareNewestFirst(
+          left.order_date,
+          right.order_date,
+          left.source_order_id,
+          right.source_order_id,
+        ),
+      );
+  }, [pieceSearch, purchases]);
   const submit = async () => {
     setFeedback(null);
     if (!customer) {
@@ -1265,6 +1424,7 @@ function ReturnTab({
       }, clientRequestId);
       setSelections(new Map());
       setCustomer(null);
+      setPieceSearch('');
       setNotes('');
       clientRequestIdRef.current = null;
       setFeedback({
@@ -1309,6 +1469,7 @@ function ReturnTab({
             setCustomer(nextCustomer);
             setPurchases([]);
             setSelections(new Map());
+            setPieceSearch('');
             if (!nextCustomer) setLoading(false);
             setFeedback(null);
             clientRequestIdRef.current = null;
@@ -1321,16 +1482,34 @@ function ReturnTab({
           <div><span className="step-number">02</span><h2>Peças elegíveis</h2></div>
           <p>{selectedItems.length} item(ns) selecionado(s)</p>
         </div>
+        {customer && purchases.length > 0 && (
+          <div className="eligible-list-toolbar">
+            <label className="search-field eligibility-search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                type="search"
+                value={pieceSearch}
+                disabled={submitting}
+                onChange={(event) => setPieceSearch(event.target.value)}
+                placeholder="Procurar uma peça específica"
+                aria-label="Procurar peça para devolução"
+              />
+            </label>
+            <span>Mais recentes primeiro · {visiblePurchases.length} resultado(s)</span>
+          </div>
+        )}
         {loading ? <div className="loading-row" aria-live="polite">Buscando histórico de compras...</div> : !customer ? (
           <div className="empty-state">Selecione um cliente para consultar as compras.</div>
         ) : !purchases.length ? (
           <div className="empty-state">Nenhuma peça elegível encontrada para este cliente.</div>
+        ) : !visiblePurchases.length ? (
+          <div className="empty-state">Nenhuma peça encontrada com esse filtro.</div>
         ) : (
           <div className="table-scroll">
             <table className="data-table warranty-table">
               <thead><tr><th>Origem</th><th>Data</th><th>Peça</th><th>Disponível</th><th>Quantidade</th></tr></thead>
               <tbody>
-                {purchases.map((item) => {
+                {visiblePurchases.map((item) => {
                   const key = item.eligibility_id;
                   const selection = selections.get(key);
                   return (
@@ -1409,6 +1588,7 @@ function CancellationTab({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<EligibleCancellationOrder[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string>('');
+  const [pieceSearch, setPieceSearch] = useState('');
   const [createRefund, setCreateRefund] = useState(false);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1427,6 +1607,7 @@ function CancellationTab({
     setCustomer(null);
     setOrders([]);
     setSelectedOrderId('');
+    setPieceSearch('');
     setCreateRefund(false);
     setNotes('');
     setFeedback(null);
@@ -1467,6 +1648,24 @@ function CancellationTab({
     clientRequestIdRef.current = null;
   };
 
+  const visibleOrders = useMemo(() => {
+    const search = normalizedSearchText(pieceSearch.trim());
+    return [...orders]
+      .filter((order) =>
+        !search ||
+        normalizedSearchText(
+          order.order_label,
+          ...order.items.flatMap((item) => [
+            item.description,
+            item.product,
+          ]),
+        ).includes(search),
+      )
+      .sort((left, right) =>
+        compareNewestFirst(left.sale_date, right.sale_date, left.id, right.id),
+      );
+  }, [orders, pieceSearch]);
+
   const submit = async () => {
     setFeedback(null);
     if (!customer) {
@@ -1498,6 +1697,7 @@ function CancellationTab({
       setCustomer(null);
       setOrders([]);
       setSelectedOrderId('');
+      setPieceSearch('');
       setCreateRefund(false);
       setNotes('');
       clientRequestIdRef.current = null;
@@ -1543,6 +1743,7 @@ function CancellationTab({
             setCustomer(nextCustomer);
             setOrders([]);
             setSelectedOrderId('');
+            setPieceSearch('');
             setCreateRefund(false);
             setFeedback(null);
             clientRequestIdRef.current = null;
@@ -1555,16 +1756,34 @@ function CancellationTab({
           <div><span className="step-number">02</span><h2>Venda para cancelar</h2></div>
           <p>{selectedOrder ? selectedOrder.order_label : 'Nenhuma venda selecionada'}</p>
         </div>
+        {customer && orders.length > 0 && (
+          <div className="eligible-list-toolbar">
+            <label className="search-field eligibility-search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                type="search"
+                value={pieceSearch}
+                disabled={submitting}
+                onChange={(event) => setPieceSearch(event.target.value)}
+                placeholder="Procurar venda por peça"
+                aria-label="Procurar venda para cancelamento por peça"
+              />
+            </label>
+            <span>Mais recentes primeiro · {visibleOrders.length} resultado(s)</span>
+          </div>
+        )}
         {loading ? <div className="loading-row" aria-live="polite">Buscando vendas do cliente...</div> : !customer ? (
           <div className="empty-state">Selecione um cliente para consultar as vendas.</div>
         ) : !orders.length ? (
           <div className="empty-state">Nenhuma venda disponível para cancelamento.</div>
+        ) : !visibleOrders.length ? (
+          <div className="empty-state">Nenhuma venda contém a peça procurada.</div>
         ) : (
           <div className="table-scroll">
             <table className="data-table cancellation-table">
               <thead><tr><th>Selecionar</th><th>Venda</th><th>Data</th><th>Peças</th><th>Pagamento</th><th>Total</th><th>Reembolsável</th></tr></thead>
               <tbody>
-                {orders.map((order) => {
+                {visibleOrders.map((order) => {
                   const selected = String(order.id) === selectedOrderId;
                   return (
                     <tr className={selected ? 'selected-row' : ''} key={order.id} onClick={() => selectOrder(order)}>

@@ -41,6 +41,7 @@ export interface CatalogResponse {
 export interface CartItem {
   product: Product;
   quantity: number;
+  unitPrice?: number;
 }
 
 export interface PublicOrderResponse {
@@ -144,6 +145,7 @@ export type DeliveryMethod = 'CUSTOMER_PICKUP' | 'MOTOBOY';
 export interface OperationalRequestItemInput {
   product_id: string;
   quantity: number;
+  unit_price?: number | string;
   source_order_item?: number | string;
   source_warranty?: number | string;
   defect?: string;

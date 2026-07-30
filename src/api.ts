@@ -366,7 +366,9 @@ function normalizeEligiblePurchases(data: unknown): EligiblePurchaseItem[] {
 }
 
 export function employeeHasQuickOrderAccess(user: EmployeeUser): boolean {
-  return user.is_superuser || user.permissions?.includes('sales.access_quick_order');
+  // Every authenticated internal employee can use Pedido Rápido. Store access
+  // is still limited by the allowed_stores returned for that employee.
+  return Boolean(user.id && user.email);
 }
 
 export const api = {
