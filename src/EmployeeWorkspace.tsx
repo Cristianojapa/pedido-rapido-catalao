@@ -108,11 +108,13 @@ function requestStatusReason(value?: string | null): string {
 
 function RequestProductDetails({ request }: { request: OperationalRequest }) {
   const items = request.items ?? [];
-  const title = request.type === 'RETURN'
-    ? 'Produtos da devolução'
-    : request.type === 'SALE'
-      ? 'Produtos da compra'
-      : 'Produtos da solicitação';
+  const titles: Record<string, string> = {
+    SALE: 'Produtos da compra',
+    RETURN: 'Produtos da devolução',
+    WARRANTY_EXCHANGE: 'Produtos da garantia',
+    CANCELLATION: 'Produtos do cancelamento',
+  };
+  const title = titles[request.type] ?? 'Produtos da solicitação';
   const statusReason = requestStatusReason(request.status_reason);
 
   return (
