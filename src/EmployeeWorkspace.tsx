@@ -1285,7 +1285,10 @@ function RequestsTab({
         <div className="empty-state">Nenhuma solicitação encontrada para os filtros selecionados.</div>
       ) : (
         <div className="table-scroll request-list-table">
-          <table className="data-table">
+          <table className="data-table request-data-table request-data-table-with-seller">
+            <colgroup>
+              <col /><col /><col /><col /><col /><col /><col /><col /><col />
+            </colgroup>
             <thead><tr><th>ID</th><th>Tipo</th><th>Cliente</th><th>Criado por</th><th>Loja</th><th>Enviado em</th><th>Status</th><th>Detalhes</th><th>Ação</th></tr></thead>
             <tbody>
               {visibleRequests.map((request) => (
