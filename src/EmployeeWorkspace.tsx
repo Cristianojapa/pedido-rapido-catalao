@@ -106,6 +106,38 @@ function requestStatusReason(value?: string | null): string {
   return raw;
 }
 
+function RequestProductDetails({ request }: { request: OperationalRequest }) {
+  const items = request.items ?? [];
+  const title = request.type === 'RETURN'
+    ? 'Produtos da devolução'
+    : request.type === 'SALE'
+      ? 'Produtos da compra'
+      : 'Produtos da solicitação';
+  const statusReason = requestStatusReason(request.status_reason);
+
+  return (
+    <div className="request-product-details">
+      <strong className="request-product-title">{title}</strong>
+      {items.length > 0 ? (
+        <ul className="request-product-list">
+          {items.map((item, index) => (
+            <li key={item.id ?? `${request.id}-${index}`}>
+              <span>{item.quantity}×</span>
+              <span>{item.product_description || item.product || item.product_id || 'Produto'}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <span className="table-muted">Nenhum produto informado</span>
+      )}
+      <span className="request-product-summary">
+        {formatCurrency(Number(request.total_value || 0))}
+      </span>
+      {statusReason && <span className="request-status-reason">{statusReason}</span>}
+    </div>
+  );
+}
+
 function requestCreatorId(request: OperationalRequest): string {
   const value = request.submitted_by ?? request.seller;
   return value === null || value === undefined ? '' : String(value);
@@ -1264,7 +1296,7 @@ function RequestsTab({
                   <td data-label="Enviado em">{formatDate(request.created_at)}</td>
                   <td data-label="Status"><span className={`status-badge status-${request.status.toLowerCase()}`}>{requestStatusLabel(request)}</span></td>
                   <td data-label="Detalhes" className="request-detail-cell">
-                    {requestStatusReason(request.status_reason) || `${request.items?.length || 0} item(ns) · ${formatCurrency(Number(request.total_value || 0))}`}
+                    <RequestProductDetails request={request} />
                   </td>
                   <td data-label="Ação">
                     {['SEPARATING', 'READY_FOR_DELIVERY'].includes(request.status) && isMyRequest(request) ? (
