@@ -338,7 +338,7 @@ function CartLines({
                   inputMode="decimal"
                   min="0.01"
                   max="99999999.99"
-                  step="0.01"
+                  step="1"
                   value={currentPrice}
                   disabled={disabled}
                   aria-label={`Preço unitário de ${product.description}`}
