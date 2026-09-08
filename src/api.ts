@@ -643,36 +643,29 @@ export const api = {
     );
   },
 
-  async getOperationalRequests(storeId: number | string): Promise<OperationalRequest[]> {
+  async getRequestCreators(storeId: number | string, signal?: AbortSignal): Promise<{id: string; name: string}[]> {
+    return employeeRequest(`/api/operational-requests/creators/?store=${encodeURIComponent(storeId)}`, { signal });
+  },
+
+  async getOperationalRequests(
+    storeId: number | string,
+    options: { page: number; creator?: string; type?: string; status?: string; signal?: AbortSignal },
+  ): Promise<{ results: OperationalRequest[]; count: number }> {
     const params = new URLSearchParams({
       store: String(storeId),
-      page_size: '100',
+      page_size: '50',
+      page: String(options.page),
     });
-    let data = await employeeRequest<unknown>(
+    if (options.creator) params.set('creator', options.creator);
+    if (options.type) params.set('type', options.type);
+    if (options.status) params.set('status', options.status);
+    const data = await employeeRequest<{results: Record<string, unknown>[]; count: number}>(
       `/api/operational-requests/?${params}`,
-      { cache: 'no-store' },
+      { cache: 'no-store', signal: options.signal },
       'Não foi possível carregar as solicitações da loja.',
     );
     const rows = unwrapList<Record<string, unknown>>(data);
-    const visitedPages = new Set<string>();
-
-    while (data && typeof data === 'object') {
-      const links = (data as Record<string, unknown>).links;
-      const next = links && typeof links === 'object'
-        ? (links as Record<string, unknown>).next
-        : null;
-      if (typeof next !== 'string' || !next || visitedPages.has(next)) break;
-      visitedPages.add(next);
-      const parsed = new URL(next, window.location.origin);
-      data = await employeeRequest<unknown>(
-        `${parsed.pathname}${parsed.search}`,
-        { cache: 'no-store' },
-        'Não foi possível carregar todas as solicitações da loja.',
-      );
-      rows.push(...unwrapList<Record<string, unknown>>(data));
-    }
-
-    return rows.map((request) => {
+    return { count: data.count, results: rows.map((request) => {
       const store = request.store;
       const customer = request.customer;
       return {
@@ -692,6 +685,6 @@ export const api = {
           ?? '',
         ),
       } as OperationalRequest;
-    });
+    }) };
   },
 };

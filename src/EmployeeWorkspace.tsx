@@ -1076,34 +1076,63 @@ function RequestsTab({
   const [sellerFilter, setSellerFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [sellerOptions, setSellerOptions] = useState<{id: string; name: string}[]>([]);
+  const loadController = useRef<AbortController | null>(null);
   const loadSequence = useRef(0);
   const liveRefreshInFlight = useRef(false);
   const actionInFlight = useRef(false);
 
   const loadRequests = useCallback(async (silent = false) => {
+    if (silent && loadController.current) return;
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
     const sequence = ++loadSequence.current;
     if (!silent) {
       setLoading(true);
       setError(null);
     }
     try {
-      const data = await api.getOperationalRequests(store.id);
+      const data = await api.getOperationalRequests(store.id, {
+        page,
+        creator: sellerFilter === 'ME' ? String(user.id)
+          : sellerFilter.startsWith('SELLER:') ? sellerFilter.slice(7) : undefined,
+        type: typeFilter === 'ALL' ? undefined : typeFilter,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
+        signal: controller.signal,
+      });
       if (sequence !== loadSequence.current) return;
-      setRequests(data);
+      setRequests(data.results);
+      setTotal(data.count);
       setError(null);
     } catch (requestError) {
-      if (sequence !== loadSequence.current) return;
+      if (sequence !== loadSequence.current || controller.signal.aborted) return;
       setError((requestError as Error).message);
     } finally {
+      if (loadController.current === controller) loadController.current = null;
       if (sequence === loadSequence.current) setLoading(false);
     }
-  }, [store.id]);
+  }, [store.id, page, sellerFilter, typeFilter, statusFilter, user.id]);
 
   useEffect(() => {
     setSellerFilter('ALL');
     setTypeFilter('ALL');
     setStatusFilter('ALL');
+    setPage(1);
+    setRequests([]);
+    setTotal(0);
   }, [store.id]);
+
+  useEffect(() => {
+    if (!active) return;
+    const controller = new AbortController();
+    void api.getRequestCreators(store.id, controller.signal)
+      .then(setSellerOptions)
+      .catch(() => { /* List loading reports connectivity errors separately. */ });
+    return () => controller.abort();
+  }, [store.id, active, refreshKey]);
 
   useEffect(() => {
     if (!active) {
@@ -1138,21 +1167,13 @@ function RequestsTab({
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       loadSequence.current += 1;
+      loadController.current?.abort();
+      loadController.current = null;
       window.clearInterval(interval);
       window.removeEventListener('focus', refreshLive);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [active, loadRequests, refreshKey, reloadKey]);
-
-  const sellerOptions = useMemo(() => {
-    const sellers = new Map<string, string>();
-    requests.forEach((request) => {
-      const id = requestCreatorId(request);
-      if (id) sellers.set(id, requestCreatorName(request));
-    });
-    return Array.from(sellers, ([id, name]) => ({ id, name }))
-      .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR'));
-  }, [requests]);
 
   const isMyRequest = useCallback(
     (request: OperationalRequest) => requestCreatorId(request) === String(user.id),
@@ -1172,13 +1193,23 @@ function RequestsTab({
   }, [isMyRequest, requests, sellerFilter, statusFilter, typeFilter]);
 
   const confirmDelivery = async (request: OperationalRequest) => {
+    if (actionInFlight.current) return;
     const requestId = String(request.id);
     actionInFlight.current = true;
+    // An older list response must not overwrite the confirmed delivery.
+    loadSequence.current += 1;
+    loadController.current?.abort();
+    loadController.current = null;
+    setLoading(false);
     setActionId(requestId);
     setFeedback(null);
     setError(null);
     try {
       const updated = await api.deliverOperationalRequest(request.id);
+      if (statusFilter !== 'ALL' && updated.status !== statusFilter) {
+        setTotal((current) => Math.max(0, current - 1));
+        if (requests.length === 1 && page > 1) setPage((current) => current - 1);
+      }
       setRequests((current) => current.map((item) => (
         String(item.id) === requestId ? { ...item, ...updated } : item
       )));
@@ -1187,7 +1218,8 @@ function RequestsTab({
           ? `Troca #${request.id} entregue. Encaminhe agora a peça com defeito ao estoque.`
           : `Venda #${request.id} marcada como entregue.`,
       );
-      await loadRequests(true);
+      // The POST returns the updated card. Normal polling reconciles the page
+      // afterwards without keeping all delivery buttons locked on a list GET.
     } catch (requestError) {
       setError((requestError as Error).message);
     } finally {
@@ -1232,7 +1264,7 @@ function RequestsTab({
             <select
               value={sellerFilter}
               disabled={loading}
-              onChange={(event) => setSellerFilter(event.target.value)}
+              onChange={(event) => { setSellerFilter(event.target.value); setPage(1); }}
             >
               <option value="ALL">Todos os vendedores</option>
               <option value="ME">Meu login — {employeeName(user)}</option>
@@ -1248,7 +1280,7 @@ function RequestsTab({
             <select
               value={typeFilter}
               disabled={loading}
-              onChange={(event) => setTypeFilter(event.target.value)}
+              onChange={(event) => { setTypeFilter(event.target.value); setPage(1); }}
             >
               <option value="ALL">Todos os tipos</option>
               {REQUEST_TYPE_FILTER_OPTIONS.map((option) => (
@@ -1261,7 +1293,7 @@ function RequestsTab({
             <select
               value={statusFilter}
               disabled={loading}
-              onChange={(event) => setStatusFilter(event.target.value)}
+              onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}
             >
               <option value="ALL">Todos os status</option>
               {REQUEST_STATUS_FILTER_OPTIONS.map((option) => (
@@ -1271,10 +1303,17 @@ function RequestsTab({
           </label>
         </div>
         <span className="request-filter-count">
-          {visibleRequests.length} de {requests.length} solicitação(ões)
+          {visibleRequests.length} nesta página · {total} solicitação(ões)
         </span>
       </div>
 
+      <div className="requests-live-actions" aria-label="Paginação de solicitações">
+        <button className="button secondary" disabled={loading || page === 1 || actionId !== null}
+          onClick={() => setPage((current) => current - 1)}>Anterior</button>
+        <span>Página {page} de {Math.max(1, Math.ceil(total / 50))}</span>
+        <button className="button secondary" disabled={loading || page * 50 >= total || actionId !== null}
+          onClick={() => setPage((current) => current + 1)}>Próxima</button>
+      </div>
       {feedback && <div className="inline-alert success" role="status">{feedback}</div>}
       {error && <div className="inline-alert error" role="alert">{error}</div>}
       {loading ? (
