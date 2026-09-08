@@ -180,7 +180,6 @@ export default function ProductBrowser({
   disabled = false,
 }: ProductBrowserProps) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [totalProducts, setTotalProducts] = useState(0);
   const [filters, setFilters] = useState<Filters>({ groups: [], brands: [], categories: [], colors: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -232,7 +231,6 @@ export default function ProductBrowser({
     ])
       .then(([data, stockLevels]) => {
         if (active) {
-          setTotalProducts(data.total);
           setProducts(
             data.products.map((product) => ({
               ...product,
@@ -348,20 +346,13 @@ export default function ProductBrowser({
       </div>
 
       {error ? <div className="inline-alert error">{error}</div> : (
-        <>
-          {!loading && totalProducts > products.length && (
-            <p className="muted-copy">
-              Exibindo os primeiros {products.length} de {totalProducts} produtos. Digite mais detalhes ou use os filtros para localizar rapidamente.
-            </p>
-          )}
-          <ProductTable
-            products={products}
-            cart={cart}
-            onQuantityChange={onQuantityChange}
-            loading={loading}
-            disabled={disabled}
-          />
-        </>
+        <ProductTable
+          products={products}
+          cart={cart}
+          onQuantityChange={onQuantityChange}
+          loading={loading}
+          disabled={disabled}
+        />
       )}
     </section>
   );

@@ -381,7 +381,7 @@ export const api = {
     params?: { group?: number; brand?: number; category?: number; color?: number; search?: string },
     signal?: AbortSignal,
   ): Promise<CatalogResponse> {
-    const searchParams = new URLSearchParams({ store: String(storeId), limit: '150' });
+    const searchParams = new URLSearchParams({ store: String(storeId) });
     if (params?.group) searchParams.set('group', String(params.group));
     if (params?.brand) searchParams.set('brand', String(params.brand));
     if (params?.category) searchParams.set('category', String(params.category));
