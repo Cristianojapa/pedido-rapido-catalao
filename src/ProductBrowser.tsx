@@ -19,6 +19,23 @@ interface ActiveFilters {
   color: number | null;
 }
 
+const STOCK_CACHE_MS = 15_000;
+const stockCache = new Map<number, {
+  expiresAt: number;
+  promise: Promise<Record<string, number>>;
+}>();
+
+function getCachedStockLevels(storeId: number) {
+  const cached = stockCache.get(storeId);
+  if (cached && cached.expiresAt > Date.now()) return cached.promise;
+  const promise = api.getEmployeeStockLevels(storeId).catch((error) => {
+    stockCache.delete(storeId);
+    throw error;
+  });
+  stockCache.set(storeId, { expiresAt: Date.now() + STOCK_CACHE_MS, promise });
+  return promise;
+}
+
 function FilterChips({
   label,
   items,
@@ -163,6 +180,7 @@ export default function ProductBrowser({
   disabled = false,
 }: ProductBrowserProps) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [filters, setFilters] = useState<Filters>({ groups: [], brands: [], categories: [], colors: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -201,6 +219,7 @@ export default function ProductBrowser({
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     Promise.all([
       api.getProducts(store.id, {
         group: activeFilters.group || undefined,
@@ -208,11 +227,12 @@ export default function ProductBrowser({
         category: activeFilters.category || undefined,
         color: activeFilters.color || undefined,
         search: debouncedSearch || undefined,
-      }),
-      api.getEmployeeStockLevels(store.id),
+      }, controller.signal),
+      getCachedStockLevels(store.id),
     ])
       .then(([data, stockLevels]) => {
         if (active) {
+          setTotalProducts(data.total);
           setProducts(
             data.products.map((product) => ({
               ...product,
@@ -222,13 +242,14 @@ export default function ProductBrowser({
         }
       })
       .catch((requestError: Error) => {
-        if (active) setError(requestError.message);
+        if (active && requestError.name !== 'AbortError') setError(requestError.message);
       })
       .finally(() => {
         if (active) setLoading(false);
       });
     return () => {
       active = false;
+      controller.abort();
     };
   }, [activeFilters, debouncedSearch, store.id]);
 
@@ -327,13 +348,20 @@ export default function ProductBrowser({
       </div>
 
       {error ? <div className="inline-alert error">{error}</div> : (
-        <ProductTable
-          products={products}
-          cart={cart}
-          onQuantityChange={onQuantityChange}
-          loading={loading}
-          disabled={disabled}
-        />
+        <>
+          {!loading && totalProducts > products.length && (
+            <p className="muted-copy">
+              Exibindo os primeiros {products.length} de {totalProducts} produtos. Digite mais detalhes ou use os filtros para localizar rapidamente.
+            </p>
+          )}
+          <ProductTable
+            products={products}
+            cart={cart}
+            onQuantityChange={onQuantityChange}
+            loading={loading}
+            disabled={disabled}
+          />
+        </>
       )}
     </section>
   );

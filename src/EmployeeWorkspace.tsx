@@ -191,11 +191,13 @@ function compareNewestFirst(
 
 function CustomerPicker({
   store,
+  active,
   selected,
   onSelect,
   disabled = false,
 }: {
   store: Store;
+  active: boolean;
   selected: Customer | null;
   onSelect: (customer: Customer | null) => void;
   disabled?: boolean;
@@ -209,16 +211,21 @@ function CustomerPicker({
   const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!active) {
+      setLoading(false);
+      return;
+    }
     let requestActive = true;
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError(null);
-      api.getCustomers(store.id, search)
+      api.getCustomers(store.id, search, controller.signal)
         .then((data) => {
           if (requestActive) setCustomers(data);
         })
         .catch((requestError: Error) => {
-          if (requestActive) setError(requestError.message);
+          if (requestActive && requestError.name !== 'AbortError') setError(requestError.message);
         })
         .finally(() => {
           if (requestActive) setLoading(false);
@@ -226,9 +233,10 @@ function CustomerPicker({
     }, 250);
     return () => {
       requestActive = false;
+      controller.abort();
       window.clearTimeout(timer);
     };
-  }, [search, store.id]);
+  }, [active, search, store.id]);
 
 
   useEffect(() => {
@@ -603,6 +611,7 @@ function SaleTab({
             </div>
             <CustomerPicker
               store={store}
+              active={active}
               selected={customer}
               disabled={submitting}
               onSelect={(nextCustomer) => {
@@ -938,6 +947,7 @@ function WarrantyTab({
         </div>
         <CustomerPicker
           store={store}
+          active={active}
           selected={customer}
           disabled={submitting}
           onSelect={(nextCustomer) => {
@@ -1539,6 +1549,7 @@ function ReturnTab({
         </div>
         <CustomerPicker
           store={store}
+          active={active}
           selected={customer}
           disabled={submitting}
           onSelect={(nextCustomer) => {
@@ -1813,6 +1824,7 @@ function CancellationTab({
         </div>
         <CustomerPicker
           store={store}
+          active={active}
           selected={customer}
           disabled={submitting}
           onSelect={(nextCustomer) => {

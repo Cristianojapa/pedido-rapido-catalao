@@ -379,8 +379,9 @@ export const api = {
   async getProducts(
     storeId: number,
     params?: { group?: number; brand?: number; category?: number; color?: number; search?: string },
+    signal?: AbortSignal,
   ): Promise<CatalogResponse> {
-    const searchParams = new URLSearchParams({ store: String(storeId) });
+    const searchParams = new URLSearchParams({ store: String(storeId), limit: '150' });
     if (params?.group) searchParams.set('group', String(params.group));
     if (params?.brand) searchParams.set('brand', String(params.brand));
     if (params?.category) searchParams.set('category', String(params.category));
@@ -388,7 +389,7 @@ export const api = {
     if (params?.search) searchParams.set('search', params.search);
     return requestJson<CatalogResponse>(
       `/api/public/catalog/?${searchParams}`,
-      {},
+      { signal },
       'Erro ao carregar produtos.',
     );
   },
@@ -572,12 +573,12 @@ export const api = {
     clearCustomerTokens();
   },
 
-  async getCustomers(storeId: number, search = ''): Promise<Customer[]> {
+  async getCustomers(storeId: number, search = '', signal?: AbortSignal): Promise<Customer[]> {
     const params = new URLSearchParams({ store: String(storeId) });
     if (search.trim()) params.set('search', search.trim());
     const data = await employeeRequest<unknown>(
       `/api/operational-requests/customers/?${params}`,
-      {},
+      { signal },
       'Não foi possível carregar os clientes.',
     );
     return unwrapList<Record<string, unknown>>(data).map((customer) => ({
